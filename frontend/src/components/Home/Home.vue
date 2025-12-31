@@ -703,7 +703,6 @@ async function checkAuthAndFetch() {
         // User is authenticated, fetch data
         isAuthenticated.value = true
         currentUser.value = data.user
-        fetchVideoData()
       } else {
         // Not authenticated
         isAuthenticated.value = false
@@ -714,11 +713,14 @@ async function checkAuthAndFetch() {
       isAuthenticated.value = false
       currentUser.value = null
     }
+    // Always fetch video data regardless of auth status
+    fetchVideoData()
   } catch (error) {
     console.error('Error checking auth status:', error)
-    // On error, assume not authenticated
+    // On error, assume not authenticated but still fetch data
     isAuthenticated.value = false
     currentUser.value = null
+    fetchVideoData()
   }
 }
 

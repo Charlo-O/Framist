@@ -124,10 +124,36 @@ class AlibabaEngine(TranscriptionEngine):
             # Perform recognition
             result = recognition.call(audio_file_path)
             
+            print(f"[DEBUG] Alibaba API Result Type: {type(result)}")
+            print(f"[DEBUG] Alibaba API Result Status: {result.status_code}")
+            print(f"[DEBUG] Alibaba API Result: {result}")
+            
             if result.status_code == HTTPStatus.OK:
+                # Debug: Check raw result attributes
+                print(f"[DEBUG] Result attributes: {[attr for attr in dir(result) if not attr.startswith('_')]}")
+                
+                # Get sentences
+                sentences = result.get_sentence()
+                print(f"[DEBUG] Number of sentences: {len(sentences) if isinstance(sentences, list) else 'Not a list'}")
+                print(f"[DEBUG] Sentences type: {type(sentences)}")
+                
+                if isinstance(sentences, list):
+                    print(f"[DEBUG] First sentence: {sentences[0] if sentences else 'Empty list'}")
+                    print(f"[DEBUG] Sentence count: {len(sentences)}")
+                
                 # Convert to SRT format
                 from .ali_wsr import json_to_word_srt
-                srt_content = json_to_word_srt(result.get_sentence())
+                srt_content = json_to_word_srt(sentences)
+                print(f"[DEBUG] Generated SRT content length: {len(srt_content)}")
+                print(f"[DEBUG] First 500 chars of SRT: {repr(srt_content[:500])}")
+                
+                # Try to fix encoding issues
+                try:
+                    srt_content = srt_content.encode('latin1').decode('utf-8')
+                    print(f"[DEBUG] Fixed encoding SRT: {repr(srt_content[:500])}")
+                except Exception as e:
+                    print(f"[DEBUG] Encoding fix failed: {e}")
+                
                 progress_cb("Completed")
                 return srt_content
             else:

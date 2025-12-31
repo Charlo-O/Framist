@@ -169,10 +169,16 @@ def preprocess_audio_for_transcription(video_id):
     """
     import subprocess
     import os
-    from .views.videos import get_transcription_audio_path
+    from video.services.audio_processing import get_transcription_audio_path
     
-    # 获取原始音频文件路径
-    original_audio_path = get_transcription_audio_path(video_id)
+    try:
+        # 获取原始音频文件路径
+        original_audio_path = get_transcription_audio_path(video_id)
+    except RuntimeError as e:
+        if "No audio stream found" in str(e):
+            raise Exception(f"Video has no audio stream: {e}")
+        else:
+            raise
     
     # 创建临时音频目录
     temp_audio_dir = 'work_dir/temp_audio'
@@ -434,63 +440,17 @@ def generate_subtitles_for_video(video_id: int) -> None:
     os.makedirs(SAVE_DIR, exist_ok=True)
     work_srt_path = f'work_dir/temp/{timestamp}.srt'
     
-    # def optimise_state_cb(state: str):
-    #     _update(video_id, "optimize", state)
-    
     try:
-        # 🆕 定义优化进度回调（支持整数百分比）
-        def optimize_progress_cb(value):
-            """处理优化阶段进度：整数0-100 或 字符串状态"""
-            if isinstance(value, (int, float)):
-                # 整数进度 -> 直接传递
-                _update(video_id, "optimize", "Running", progress=int(value))
-            elif value == "Completed":
-                _update(video_id, "optimize", "Completed", progress=100)
-            elif value == "Running":
-                _update(video_id, "optimize", "Running", progress=1)
-            else:
-                _update(video_id, "optimize", value)
-
-        # 第一步：优化字幕
+        # 直接复制原始SRT文件，跳过优化阶段
         _update(video_id, "optimize", "Running")
-        optimise_srt(
-            srt_path=work_srt_path,
-            save_path=original_srt_path,  # 保存优化后的原文字幕
-            num_threads=FIXED_NUM_THREADS,
-            progress_cb=optimize_progress_cb,  # 🆕 使用支持进度的回调
-        )
+        import shutil
+        shutil.copy2(work_srt_path, original_srt_path)
+        print(f"直接复制原始SRT到: {original_srt_path}")
         _update(video_id, "optimize", "Completed")
         
-        # 第二步：翻译字幕（如果需要）
-        if enable_translation and translated_srt_path:
-            from utils.split_subtitle.main import translate_srt
-
-            # 🆕 定义翻译进度回调（支持整数百分比）
-            def translate_progress_cb(value):
-                """处理翻译阶段进度：整数0-100 或 字符串状态"""
-                if isinstance(value, (int, float)):
-                    _update(video_id, "translate", "Running", progress=int(value))
-                elif value == "Completed":
-                    _update(video_id, "translate", "Completed", progress=100)
-                elif value == "Running":
-                    _update(video_id, "translate", "Running", progress=1)
-                else:
-                    _update(video_id, "translate", value)
-
-            _update(video_id, "translate", "Running")
-            translate_srt(
-                raw_srt_path=original_srt_path,  # 使用优化后的原文字幕
-                translate_srt_path=translated_srt_path,
-                raw_lang=src_lang,
-                target_lang=trans_lang,
-                use_translation_cache=True,
-                num_threads=FIXED_NUM_THREADS,  # 使用多线程翻译
-                progress_cb=translate_progress_cb,  # 🆕 使用支持进度的回调
-            )
-            _update(video_id, "translate", "Completed")
-        else:
-            _update(video_id, "translate", "Completed")
-            
+        # 跳过翻译阶段
+        _update(video_id, "translate", "Completed")
+        
     except Exception as exc:
         print(f"字幕处理失败: {exc}")
         _update(video_id, "optimize", "Failed")

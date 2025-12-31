@@ -526,11 +526,9 @@ const emit = defineEmits<{
 
       <!-- Bottom Logo -->
       <div class="px-4 py-2 flex items-center backdrop-blur-sm bg-white/5 border-t border-white/10">
-        <img
-          class="h-8 w-8 p-0.5 border border-white/30 hover:border-white/50 rounded-lg transition-all"
-          src="@/assets/flute_icon.png"
-          alt="VidGo"
-        />
+        <div class="h-8 w-8 p-0.5 border border-white/30 hover:border-white/50 rounded-lg transition-all bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <LibraryBig :size="24" class="text-white" />
+        </div>
         <div class="ml-2 flex flex-col">
           <span class="text-sm font-semibold text-white">VidGo</span>
           <span class="text-xs text-white/50">v1.0</span>

@@ -18,6 +18,7 @@ const { t } = useI18n()
 // 首页函数
 // 获取视频预览信息
 const proxyThumbnailUrl = computed(() => {
+  if (!requestVideo.value.thumbnail) return ''
   return `${BACKEND}/media/thumbnail/?url=${encodeURIComponent(requestVideo.value.thumbnail)}`
 })
 const inputUrl = ref('')
@@ -328,7 +329,7 @@ onMounted(() => {
         <!-- 左侧缩略图 -->
         <div class="flex-shrink-0">
           <img
-            :src="proxyThumbnailUrl"
+            :src="proxyThumbnailUrl || 'https://pic.chaopx.com/chao_water_pic/23/03/03/e78a5cf45f9ebc92411a8f9531975dec.jpg'"
             :alt="t('videoThumbnail')"
             class="w-20 h-16 object-cover rounded-lg border border-slate-600/50"
           />

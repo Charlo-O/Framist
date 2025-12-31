@@ -18,20 +18,43 @@ def json_to_word_srt(data: list) -> str:
     srt_lines = []
     counter = 1
 
-    for sentence in data:
+    print(f"[DEBUG] json_to_word_srt input: {type(data)}, length: {len(data) if isinstance(data, list) else 'N/A'}")
+    
+    if not isinstance(data, list):
+        print(f"[ERROR] Expected list but got {type(data)}")
+        return ""
+    
+    for idx, sentence in enumerate(data):
         words = sentence.get("words", [])
+        
         for word in words:
             start = ms_to_srt_time(word["begin_time"])
             end = ms_to_srt_time(word["end_time"])
-            text = word["text"] + (word.get("punctuation") or "")
+            
+            # 确保文本是正确的UTF-8编码
+            text = word["text"]
+            punctuation = word.get("punctuation") or ""
+            
+            # 尝试修复编码问题
+            try:
+                if isinstance(text, bytes):
+                    text = text.decode('utf-8')
+                if isinstance(punctuation, bytes):
+                    punctuation = punctuation.decode('utf-8')
+            except Exception as e:
+                print(f"[DEBUG] Encoding fix for text failed: {e}")
+            
+            full_text = (text + punctuation).strip()
             
             srt_lines.append(f"{counter}")
             srt_lines.append(f"{start} --> {end}")
-            srt_lines.append(text.strip())
+            srt_lines.append(full_text)
             srt_lines.append("")  # 空行分隔
             counter += 1
-
-    return "\n".join(srt_lines)
+    
+    srt_content = "\n".join(srt_lines)
+    print(f"[DEBUG] Generated SRT: {counter-1} entries, length: {len(srt_content)}")
+    return srt_content
 
 
 def transcribe_audio_alibaba(audio_file_path: str, api_key: str, model: str = 'paraformer-realtime-v2') -> str:

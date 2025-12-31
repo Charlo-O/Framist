@@ -1,13 +1,25 @@
 import { fileURLToPath, URL } from 'node:url'
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import electron from 'vite-plugin-electron'
+import electronRenderer from 'vite-plugin-electron-renderer'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
-  // Configure for static file serving (Django collectstatic compatible)
-  base: '/', // Use absolute paths to work with sub-routes
+  plugins: [
+    vue(),
+    electron({
+      entry: 'electron/main.ts',
+      vite: {
+        build: {
+          outDir: 'dist-electron',
+        },
+      },
+    }),
+    electronRenderer()
+  ],
+  // Configure for static file serving
+  base: './', // Use relative paths for Electron
   build: {
     assetsDir: 'assets', // Keep assets in assets folder
     rollupOptions: {
@@ -20,13 +32,13 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',
-    port: 4173,
+    host: '127.0.0.1',
+    port: 8080,
   },
   // Preview server configuration (for npm run preview)
   preview: {
-    host: '0.0.0.0',
-    port: 4174, // Different port for preview
+    host: '127.0.0.1',
+    port: 8081, // Different port for preview
   },
   resolve: {
     alias: {

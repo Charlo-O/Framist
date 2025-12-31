@@ -49,6 +49,7 @@ frontend/*.tsbuildinfo
 frontend/.claude/
 frontend/.vscode/
 frontend/dist/
+frontend/dist-electron/
 frontend/*.png/
 frontend/node_modules/
 frontend/public/logo2.png
@@ -59,3 +60,6 @@ frontend/csrf_cookies.txt
 frontend/test.html
 frontend/src/assets/vjs-luxmty/fonts/
 frontend/src/shims-hls.d.ts
+
+# backend
+backend/logs/

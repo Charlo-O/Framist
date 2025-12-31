@@ -240,8 +240,6 @@ const FALLBACK_IMG =
 import { BACKEND } from '@/composables/ConfigAPI'
 
 const watchUrl = computed(() => `watch/${encodeURIComponent(props.video.url)}`)
-const filename = props.video.thumbnail ?? ''
-
 // Inline editing state
 const isEditing = ref(false)
 const editingName = ref('')
@@ -305,7 +303,10 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
-const thumbnailUrl = `${BACKEND}/media/${encodeURIComponent(filename)}`
+const thumbnailUrl = computed(() => {
+  const filename = props.video.thumbnail ?? ''
+  return filename ? `${BACKEND}/media/${encodeURIComponent(filename)}` : ''
+})
 
 /* ✨ 双向绑定小助手 */
 const modelChecked = computed({

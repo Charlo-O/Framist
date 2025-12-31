@@ -44,6 +44,7 @@ def has_waveform_peaks(video_filename: str) -> tuple[bool, str]:
 def detect_video_audio_format(video_path: str) -> str:
     """
     Detect the original audio codec in a video file and map to extension
+    Raises RuntimeError if no audio stream is found
     """
     cmd = [
         'ffprobe', '-v', 'quiet', '-print_format', 'json',
@@ -62,9 +63,9 @@ def detect_video_audio_format(video_path: str) -> str:
                     'ac-3': 'ac3', 'eac3': 'eac3'
                 }
                 return mapping.get(codec, 'aac')
-    except Exception:
-        pass
-    return 'aac'
+    except Exception as e:
+        raise RuntimeError(f"Failed to detect audio format: {str(e)}")
+    raise RuntimeError("No audio stream found in video file")
 
 
 def extract_audio_from_video_file(
@@ -105,6 +106,7 @@ def get_audio_file_for_transcription(video_id: int) -> tuple[str, bool]:
     """
     Ensure an audio file exists for transcription, extracting if needed.
     Returns: (audio_path, was_extracted)
+    Raises RuntimeError if no audio stream is found in the video
     """
     video, file_path, audio_dir = get_video_file_paths(video_id)
     if is_audio_file(video.url):
@@ -119,7 +121,14 @@ def get_audio_file_for_transcription(video_id: int) -> tuple[str, bool]:
     os.makedirs(audio_dir, exist_ok=True)
     if not os.path.exists(file_path):
         raise FileNotFoundError(file_path)
-    fmt = detect_video_audio_format(file_path)
+    
+    # Check if video has audio stream first
+    try:
+        fmt = detect_video_audio_format(file_path)
+    except RuntimeError as e:
+        # If no audio stream found, raise a specific error
+        raise RuntimeError(f"No audio stream found in video: {e}")
+    
     audio_path = os.path.join(audio_dir, f"{base}.{fmt}")
     ok, err, _ = extract_audio_from_video_file(file_path, audio_path, True)
     if ok:
