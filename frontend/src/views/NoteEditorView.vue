@@ -77,7 +77,11 @@ function simpleMarkdownToHtml(md: string): string {
     .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="rounded-lg max-w-full my-2" />')
+    // 处理图片：如果URL以/media/开头，添加BACKEND前缀
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+      const fullUrl = url.startsWith('/media/') ? `${BACKEND}${url}` : url
+      return `<img src="${fullUrl}" alt="${alt}" class="rounded-lg max-w-full my-2" />`
+    })
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-500 hover:underline">$1</a>')
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br />')

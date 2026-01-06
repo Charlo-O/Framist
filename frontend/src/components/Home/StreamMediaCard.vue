@@ -19,7 +19,7 @@ const { t } = useI18n()
 // 获取视频预览信息
 const proxyThumbnailUrl = computed(() => {
   if (!requestVideo.value.thumbnail) return ''
-  return `${BACKEND}/media/thumbnail/?url=${encodeURIComponent(requestVideo.value.thumbnail)}`
+  return `${BACKEND}/api/media/thumbnail/?url=${encodeURIComponent(requestVideo.value.thumbnail)}`
 })
 const inputUrl = ref('')
 async function submitUrl() {

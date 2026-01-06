@@ -17,6 +17,7 @@ def _ensure_ini():
     """Create a default settings.ini if it doesn't exist."""
     if not os.path.exists(SETTINGS_FILE):
         cfg = configparser.ConfigParser(interpolation=None)
+        cfg['DEFAULT'] = {
             'selected_model_provider': 'deepseek',
             'enable_thinking': 'true',
             'use_proxy': 'false',
