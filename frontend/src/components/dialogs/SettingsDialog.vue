@@ -104,6 +104,20 @@
                 </option>
               </select>
             </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">模型名称</label>
+              <input
+                v-model="currentModelName"
+                type="text"
+                class="w-full p-2 border border-gray-300 rounded-md"
+                :placeholder="getDefaultModelName()"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                留空使用默认模型（{{ getDefaultModelName() }}）
+              </p>
+            </div>
+
             <div class="flex items-center justify-between">
               <el-switch
                 v-model="settings.useProxy"
@@ -1309,6 +1323,56 @@ const currentBaseUrl = computed({
   },
 })
 
+// 模型名称计算属性
+const currentModelName = computed({
+  get() {
+    switch (settings.selectedModelProvider) {
+      case 'deepseek':
+        return settings.deepseekModelName || ''
+      case 'openai':
+        return settings.openaiModelName || ''
+      case 'glm':
+        return settings.glmModelName || ''
+      case 'qwen':
+        return settings.qwenModelName || ''
+      default:
+        return settings.deepseekModelName || ''
+    }
+  },
+  set(value: string) {
+    switch (settings.selectedModelProvider) {
+      case 'deepseek':
+        settings.deepseekModelName = value
+        break
+      case 'openai':
+        settings.openaiModelName = value
+        break
+      case 'glm':
+        settings.glmModelName = value
+        break
+      case 'qwen':
+        settings.qwenModelName = value
+        break
+    }
+  },
+})
+
+// 获取默认模型名称
+function getDefaultModelName(): string {
+  switch (settings.selectedModelProvider) {
+    case 'deepseek':
+      return 'deepseek-chat'
+    case 'openai':
+      return 'gpt-4o-mini'
+    case 'glm':
+      return 'glm-4-flash'
+    case 'qwen':
+      return 'qwen-max'
+    default:
+      return 'deepseek-chat'
+  }
+}
+
 // 当前字幕设置的计算属性
 const currentSubtitleSettings = computed(() => {
   if (subtitleType.value === 'raw') {
@@ -1442,12 +1506,16 @@ const settings = reactive<FrontendSettings>({
   // Provider-specific API keys
   deepseekApiKey: 'sk-17047f89de904759a241f4086bd5a9bf',
   deepseekBaseUrl: 'https://api.deepseek.com',
+  deepseekModelName: '',
   openaiApiKey: 'sk-qTbd1AR4oMuP71ziRngmk3i0djrWVfLtuisvYKCH5B9jLz9g',
   openaiBaseUrl: 'https://api.chatanywhere.tech/v1',
+  openaiModelName: '',
   glmApiKey: 'sk-17047f89de904759a241f4086bd5a9bf',
   glmBaseUrl: 'https://api.deepseek.com',
+  glmModelName: '',
   qwenApiKey: 'sk-944471ea4aef486ca2a82b2adf26c0cc',
   qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwenModelName: '',
   // Interface settings
   rawLanguage: 'zh',
   hiddenCategories: [],

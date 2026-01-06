@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { defineProps, defineEmits, ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 // i18n functionality
 const { t } = useI18n()
@@ -81,7 +82,8 @@ function openSearch() {
 }
 
 function openSettings() {
-  emit('open-settings')
+  // Update menu index to show settings view
+  emit('updateMenuIndex', 3)
 }
 import { BACKEND } from '@/composables/ConfigAPI'
 
@@ -535,7 +537,7 @@ const emit = defineEmits<{
           <LibraryBig :size="20" class="text-white" />
         </div>
         <div class="ml-2.5 flex flex-col">
-          <span class="text-sm font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">VidGo</span>
+          <span class="text-sm font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">Framist</span>
           <span class="text-xs text-slate-400">v1.0</span>
         </div>
         <el-tooltip :content="t('hideSidebar')" placement="bottom">

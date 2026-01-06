@@ -19,6 +19,7 @@ import type { MediaItem, Video, Collection, Category, RequestVideo } from '@/typ
 import StreamMediaCard from '@/components/Home/StreamMediaCard.vue'
 import EnhancedSubtitleDialog from '@/components/dialogs/EnhancedSubtitleDialog.vue' // ← 新增
 import SettingsDialog from '@/components/dialogs/SettingsDialog.vue'
+import SettingsView from '@/views/SettingsView.vue' // ← 设置视图组件
 import ThumbnailDialog from '@/components/dialogs/ThumbnailDialog.vue' // ← 新增
 import { useThumbnail } from '@/composables/thumbnail'
 import { useHiddenCategories } from '@/composables/useHiddenCategories'
@@ -148,6 +149,9 @@ function updateMenuIndex(idx: number) {
     // History页面
     currentCategory.value = null
     fetchRecentVideos() // 获取最近视频数据
+  } else if (idx === 3) {
+    // 设置页面 - 显示在右侧区域
+    currentCategory.value = null
   }
 }
 // 1.1 打开搜索框
@@ -826,7 +830,7 @@ const handleUserAreaClick = async () => {
 
 onMounted(() => {
   // Reset browser tab title to default
-  document.title = 'VidGo'
+  document.title = 'Framist'
   checkAuthAndFetch()
 })
 </script>
@@ -1018,6 +1022,11 @@ onMounted(() => {
             <p class="text-slate-400 text-sm">{{ t('pleaseLoginDesc') }}</p>
           </div>
         </div>
+      </template>
+
+      <!-- 📌 设置页面 -->
+      <template v-if="currentMenuIdx === 3">
+        <SettingsView :categories="categories" @categories-updated="onCategoriesUpdated" />
       </template>
 
       <!-- 📌 单一分类 -->

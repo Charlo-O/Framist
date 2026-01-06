@@ -1,5 +1,5 @@
 export default {
-  brand: 'VidGo',
+  brand: 'Framist',
   tagline: 'Speech-to-Text Expert',
   searchHint: 'Search (Ctrl + K)',
   folders: 'Folders',
@@ -10,7 +10,7 @@ export default {
   history: 'History',
   settings: 'Settings',
   search: 'Search',
-  welcome: 'Welcome to VidGo 🎉',
+  welcome: 'Welcome to Framist 🎉',
   linkSupport: 'Bilibili / YouTube / Podcast links supported',
   viewTasks: 'View Tasks',
   uploadLocal: 'Select local media',

@@ -1,5 +1,5 @@
 export default {
-  brand: 'VidGo',
+  brand: 'Framist',
   tagline: '语音转文字专家',
   searchHint: '搜索 (Ctrl + K)',
   folders: '文件夹',
@@ -10,7 +10,7 @@ export default {
   history: '历史记录',
   settings: '设置',
   search: '搜索',
-  welcome: '欢迎使用 VidGo 🎉',
+  welcome: '欢迎使用 Framist 🎉',
   linkSupport: '支持 Bilibili / YouTube / Podcast 链接',
   viewTasks: '查看任务状态',
   uploadLocal: '选择本地媒体',
