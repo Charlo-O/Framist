@@ -8,9 +8,9 @@ import { useI18n } from 'vue-i18n'
 interface TaskRow {
   id: number
   fileName: string
-  transcribe: number
-  optimize: number
-  translate: number
+  transcribe: string
+  optimize: string
+  translate: string
   totalProgress: number  // 🆕 总进度百分比
 }
 
@@ -124,6 +124,39 @@ let timer_download: number | undefined
 let timer_subtitle: number | undefined
 let timer_export: number | undefined
 let timer_tts: number | undefined
+
+const activeTab = ref('subtitle')
+
+// Determine which tab should be active
+function determineActiveTab() {
+  // 1. Check for running or queued tasks
+  if (downloadTasks.value.some(t => t.totalProgress < 100)) {
+    activeTab.value = 'download'
+    return
+  }
+  if (subtitleTasks.value.some(t => t.transcribe === 'Running' || t.transcribe === 'Queued' || t.optimize === 'Running' || t.translate === 'Running')) {
+    activeTab.value = 'subtitle'
+    return
+  }
+  if (exportTasks.value.some(t => t.status === 'Running' || t.status === 'Queued')) {
+    activeTab.value = 'export'
+    return
+  }
+  if (ttsTasks.value.some(t => t.status === 'Running' || t.status === 'Queued')) {
+    activeTab.value = 'tts'
+    return
+  }
+
+  // 2. Fallback to localStorage
+  const savedTab = localStorage.getItem('lastActiveTaskTab')
+  if (savedTab && ['subtitle', 'download', 'export', 'tts'].includes(savedTab)) {
+    activeTab.value = savedTab
+  }
+}
+
+function handleTabChange(tab: any) {
+  localStorage.setItem('lastActiveTaskTab', tab.props.name)
+}
 
 async function fetchSubtitleTasks() {
   try {
@@ -476,11 +509,18 @@ function handleCommand(row: TaskRow | DownloadTaskRow | ExportTaskRow | TTSTaskR
   }
 }
 
-onMounted(() => {
-  fetchDownloadTasks()
-  fetchSubtitleTasks()
-  fetchExportTasks()
-  fetchTTSTasks()
+onMounted(async () => {
+  // Fetch all tasks first
+  await Promise.all([
+    fetchDownloadTasks(),
+    fetchSubtitleTasks(),
+    fetchExportTasks(),
+    fetchTTSTasks()
+  ])
+  
+  // Then determine active tab
+  determineActiveTab()
+  
   timer_download = window.setInterval(fetchDownloadTasks, POLL_INTERVAL)
   timer_subtitle = window.setInterval(fetchSubtitleTasks, POLL_INTERVAL)
   timer_export = window.setInterval(fetchExportTasks, POLL_INTERVAL)
@@ -496,480 +536,478 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 字幕转译任务 -->
-  <div class="mb-8">
-    <div
-      class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
-    >
-      <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-slate-800">{{ t('subtitleTranslation') }}</h2>
-        <el-button
-          type="primary"
-          size="small"
-          class="bg-blue-600 hover:bg-blue-700 border-blue-600"
-          @click="fetchSubtitleTasks"
-        >
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
+  <el-tabs v-model="activeTab" class="task-tabs" @tab-click="handleTabChange">
+    <!-- 字幕转译任务 -->
+    <el-tab-pane :label="t('subtitleTranslation')" name="subtitle">
+      <div class="mb-8">
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+          <!-- 标题栏 (仅保留刷新按钮) -->
+          <div class="flex items-center justify-end mb-4">
+            <el-button
+              type="primary"
+              size="small"
+              class="bg-blue-600 hover:bg-blue-700 border-blue-600"
+              @click="fetchSubtitleTasks"
+            >
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+          </div>
 
-      <!-- 深色主题表格 -->
-      <el-table
-        :data="subtitleTasks"
-        class="light-table"
-        :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
-        :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
-        :row-style="{ background: '#ffffff' }"
-        style="width: 100%; background: #ffffff"
-      >
-        <!-- 文件名 -->
-        <el-table-column prop="fileName" :label="t('filename')" width="400" />
+          <!-- 深色主题表格 -->
+          <el-table
+            :data="subtitleTasks"
+            class="light-table"
+            :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
+            :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
+            :row-style="{ background: '#ffffff' }"
+            style="width: 100%; background: #ffffff"
+          >
+            <!-- 文件名 -->
+            <el-table-column prop="fileName" :label="t('filename')" width="400" />
 
-        <!-- 🆕 总进度条（第二列） -->
-        <el-table-column :label="t('totalProgress')" width="200">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
-                <div
-                  class="h-3 rounded-full transition-all duration-300"
+            <!-- 🆕 总进度条（第二列） -->
+            <el-table-column :label="t('totalProgress')" width="200">
+              <template #default="{ row }">
+                <div class="flex items-center">
+                  <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
+                    <div
+                      class="h-3 rounded-full transition-all duration-300"
+                      :class="{
+                        'bg-blue-500': row.totalProgress < 100,
+                        'bg-green-500': row.totalProgress === 100,
+                      }"
+                      :style="{ width: `${row.totalProgress}%` }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.totalProgress.toFixed(1) }}%</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- 字幕生成进度 -->
+            <el-table-column :label="t('subtitleGeneration')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
                   :class="{
-                    'bg-blue-500': row.totalProgress < 100,
-                    'bg-green-500': row.totalProgress === 100,
+                    waiting: row.transcribe === 'Queued',
+                    progressing: row.transcribe === 'Running',
+                    success: row.transcribe === 'Completed',
+                    error: row.transcribe === 'Failed',
                   }"
-                  :style="{ width: `${row.totalProgress}%` }"
-                ></div>
-              </div>
-              <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.totalProgress.toFixed(1) }}%</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <!-- 字幕生成进度 -->
-        <el-table-column :label="t('subtitleGeneration')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.transcribe === 'Queued',
-                progressing: row.transcribe === 'Running',
-                success: row.transcribe === 'Completed',
-                error: row.transcribe === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 字幕优化进度 -->
-        <el-table-column :label="t('subtitleOptimization')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.optimize === 'Queued',
-                progressing: row.optimize === 'Running',
-                success: row.optimize === 'Completed',
-                error: row.optimize === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 翻译进度 -->
-        <el-table-column :label="t('translationProgress')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.translate === 'Queued',
-                progressing: row.translate === 'Running',
-                success: row.translate === 'Completed',
-                error: row.translate === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 操作 -->
-        <el-table-column :label="t('operation')" width="80" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-dropdown
-                trigger="click"
-                @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
-              >
-                <!-- More 图标，slot default 用 span 包一下 -->
-                <span class="more-icon">
-                  <el-icon><More /></el-icon>
-                </span>
-                <template #dropdown>
-                  <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
-                  <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-  </div>
-
-  <!-- 视频下载任务 -->
-  <div class="mb-8">
-    <div
-      class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
-    >
-      <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-slate-800">{{ t('videoDownload') }}</h2>
-        <el-button
-          type="primary"
-          size="small"
-          class="bg-blue-600 hover:bg-blue-700 border-blue-600"
-          @click="fetchDownloadTasks"
-        >
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
-
-      <!-- 深色主题表格 -->
-      <el-table
-        :data="downloadTasks"
-        class="light-table"
-        :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
-        :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
-        :row-style="{ background: '#ffffff' }"
-        style="width: 100%; background: #ffffff"
-      >
-        <!-- 文件名 -->
-        <el-table-column prop="fileName" :label="t('filename')" width="400" />
-
-        <!-- 🆕 总进度条 -->
-        <el-table-column :label="t('totalProgress')" width="200">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
-                <div
-                  class="h-3 rounded-full transition-all duration-300"
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 字幕优化进度 -->
+            <el-table-column :label="t('subtitleOptimization')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
                   :class="{
-                    'bg-blue-500': row.totalProgress < 100,
-                    'bg-green-500': row.totalProgress === 100,
+                    waiting: row.optimize === 'Queued',
+                    progressing: row.optimize === 'Running',
+                    success: row.optimize === 'Completed',
+                    error: row.optimize === 'Failed',
                   }"
-                  :style="{ width: `${row.totalProgress}%` }"
-                ></div>
-              </div>
-              <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.totalProgress.toFixed(1) }}%</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <!-- 视频下载进度 -->
-        <el-table-column :label="t('videoDownloadProgress')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.video === 'Queued',
-                progressing: row.video === 'Running',
-                success: row.video === 'Completed',
-                error: row.video === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 音频下载进度 -->
-        <el-table-column :label="t('audioDownloadProgress')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.audio === 'Queued',
-                progressing: row.audio === 'Running',
-                success: row.audio === 'Completed',
-                error: row.audio === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 拼接进度 -->
-        <el-table-column :label="t('audioVideoMerge')" min-width="120">
-          <template #default="{ row }">
-            <span
-              class="status-dot"
-              :class="{
-                waiting: row.merge === 'Queued',
-                progressing: row.merge === 'Running',
-                success: row.merge === 'Completed',
-                error: row.merge === 'Failed',
-              }"
-            ></span>
-          </template>
-        </el-table-column>
-        <!-- 操作 -->
-        <el-table-column label="操作" width="80" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-dropdown
-                trigger="click"
-                @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
-              >
-                <!-- More 图标，slot default 用 span 包一下 -->
-                <span class="more-icon">
-                  <el-icon><More /></el-icon>
-                </span>
-                <template #dropdown>
-                  <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
-                  <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-  </div>
-
-  <!-- 视频导出任务 -->
-  <div class="mb-8">
-    <div
-      class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
-    >
-      <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-slate-800">{{ t('videoExport') }}</h2>
-        <el-button
-          type="primary"
-          size="small"
-          class="bg-blue-600 hover:bg-blue-700 border-blue-600"
-          @click="fetchExportTasks"
-        >
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
-
-      <!-- 深色主题表格 -->
-      <el-table
-        :data="exportTasks"
-        class="light-table"
-        :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
-        :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
-        :row-style="{ background: '#ffffff' }"
-        style="width: 100%; background: #ffffff"
-      >
-        <!-- 视频名称 -->
-        <el-table-column prop="videoName" :label="t('videoName')" width="400" />
-
-        <!-- 🆕 总进度（第二列） -->
-        <el-table-column :label="t('totalProgress')" width="200">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
-                <div
-                  class="h-3 rounded-full transition-all duration-300"
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 翻译进度 -->
+            <el-table-column :label="t('translationProgress')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
                   :class="{
-                    'bg-blue-500': row.progress < 100,
-                    'bg-green-500': row.progress === 100,
+                    waiting: row.translate === 'Queued',
+                    progressing: row.translate === 'Running',
+                    success: row.translate === 'Completed',
+                    error: row.translate === 'Failed',
                   }"
-                  :style="{ width: `${row.progress}%` }"
-                ></div>
-              </div>
-              <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.progress }}%</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <!-- 字幕类型 -->
-        <el-table-column
-          prop="subtitleType"
-          :label="t('subtitleType')"
-          min-width="120"
-        />
-
-        <!-- 导出状态 -->
-        <el-table-column :label="t('exportStatus')" min-width="150">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <span
-                class="status-dot"
-                :class="{
-                  waiting: row.status === 'Queued',
-                  progressing: row.status === 'Running',
-                  success: row.status === 'Completed',
-                  error: row.status === 'Failed',
-                }"
-              ></span>
-              <span class="ml-2 text-sm">
-                <span v-if="row.status === 'Failed'" class="text-red-400">任务失败</span>
-                <span v-else-if="row.status === 'Running'" class="text-blue-400">进行中</span>
-                <span v-else-if="row.status === 'Completed'" class="text-green-400">已完成</span>
-                <span v-else>{{ getStatusLabel(row.status) }}</span>
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-        <!-- 输出文件 -->
-        <el-table-column :label="t('outputFile')" min-width="180">
-          <template #default="{ row }">
-            <span v-if="row.outputFilename" class="text-sm text-gray-300">{{
-              row.outputFilename
-            }}</span>
-            <span v-else-if="row.errorMessage" class="text-xs text-red-400">{{
-              row.errorMessage
-            }}</span>
-            <span v-else class="text-xs text-gray-500">-</span>
-          </template>
-        </el-table-column>
-        <!-- 操作 -->
-        <el-table-column label="操作" width="80" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-dropdown
-                trigger="click"
-                @command="(cmd: 'retry' | 'delete' | 'download') => handleCommand(row, cmd)"
-              >
-                <!-- More 图标，slot default 用 span 包一下 -->
-                <span class="more-icon">
-                  <el-icon><More /></el-icon>
-                </span>
-                <template #dropdown>
-                  <el-dropdown-item
-                    v-if="row.status === 'Completed' && row.outputFilename"
-                    command="download"
-                    class="text-green-400 hover:text-green-300"
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 操作 -->
+            <el-table-column :label="t('operation')" width="80" align="center" fixed="right">
+              <template #default="{ row }">
+                <div class="action-cell">
+                  <el-dropdown
+                    trigger="click"
+                    @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
                   >
-                    {{ t('download') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
-                  <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-  </div>
-
-  <!-- TTS配音生成任务 -->
-  <div class="mb-8">
-    <div
-      class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
-    >
-      <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-slate-800">TTS配音生成</h2>
-        <el-button
-          type="primary"
-          size="small"
-          class="bg-blue-600 hover:bg-blue-700 border-blue-600"
-          @click="fetchTTSTasks"
-        >
-          <el-icon><Refresh /></el-icon>
-        </el-button>
+                    <!-- More 图标，slot default 用 span 包一下 -->
+                    <span class="more-icon">
+                      <el-icon><More /></el-icon>
+                    </span>
+                    <template #dropdown>
+                      <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
+                      <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
+                    </template>
+                  </el-dropdown>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </div>
+    </el-tab-pane>
 
-      <!-- 深色主题表格 -->
-      <el-table
-        :data="ttsTasks"
-        class="light-table"
-        :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
-        :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
-        :row-style="{ background: '#ffffff' }"
-        style="width: 100%; background: #ffffff"
-      >
-        <!-- 视频名称 -->
-        <el-table-column prop="videoName" label="视频名称" width="400" />
+    <!-- 视频下载任务 -->
+    <el-tab-pane :label="t('videoDownload')" name="download">
+      <div class="mb-8">
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+          <!-- 标题栏 -->
+          <div class="flex items-center justify-end mb-4">
+            <el-button
+              type="primary"
+              size="small"
+              class="bg-blue-600 hover:bg-blue-700 border-blue-600"
+              @click="fetchDownloadTasks"
+            >
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+          </div>
 
-        <!-- 总进度条 -->
-        <el-table-column label="进度" width="200">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
-                <div
-                  class="h-3 rounded-full transition-all duration-300"
+          <!-- 深色主题表格 -->
+          <el-table
+            :data="downloadTasks"
+            class="light-table"
+            :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
+            :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
+            :row-style="{ background: '#ffffff' }"
+            style="width: 100%; background: #ffffff"
+          >
+            <!-- 文件名 -->
+            <el-table-column prop="fileName" :label="t('filename')" width="400" />
+
+            <!-- 🆕 总进度条 -->
+            <el-table-column :label="t('totalProgress')" width="200">
+              <template #default="{ row }">
+                <div class="flex items-center">
+                  <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
+                    <div
+                      class="h-3 rounded-full transition-all duration-300"
+                      :class="{
+                        'bg-blue-500': row.totalProgress < 100,
+                        'bg-green-500': row.totalProgress === 100,
+                      }"
+                      :style="{ width: `${row.totalProgress}%` }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.totalProgress.toFixed(1) }}%</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- 视频下载进度 -->
+            <el-table-column :label="t('videoDownloadProgress')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
                   :class="{
-                    'bg-blue-500': row.progress < 100,
-                    'bg-green-500': row.progress === 100,
+                    waiting: row.video === 'Queued',
+                    progressing: row.video === 'Running',
+                    success: row.video === 'Completed',
+                    error: row.video === 'Failed',
                   }"
-                  :style="{ width: `${row.progress}%` }"
-                ></div>
-              </div>
-              <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.progress }}%</span>
-            </div>
-          </template>
-        </el-table-column>
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 音频下载进度 -->
+            <el-table-column :label="t('audioDownloadProgress')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
+                  :class="{
+                    waiting: row.audio === 'Queued',
+                    progressing: row.audio === 'Running',
+                    success: row.audio === 'Completed',
+                    error: row.audio === 'Failed',
+                  }"
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 拼接进度 -->
+            <el-table-column :label="t('audioVideoMerge')" min-width="120">
+              <template #default="{ row }">
+                <span
+                  class="status-dot"
+                  :class="{
+                    waiting: row.merge === 'Queued',
+                    progressing: row.merge === 'Running',
+                    success: row.merge === 'Completed',
+                    error: row.merge === 'Failed',
+                  }"
+                ></span>
+              </template>
+            </el-table-column>
+            <!-- 操作 -->
+            <el-table-column label="操作" width="80" align="center" fixed="right">
+              <template #default="{ row }">
+                <div class="action-cell">
+                  <el-dropdown
+                    trigger="click"
+                    @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
+                  >
+                    <!-- More 图标，slot default 用 span 包一下 -->
+                    <span class="more-icon">
+                      <el-icon><More /></el-icon>
+                    </span>
+                    <template #dropdown>
+                      <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
+                      <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
+                    </template>
+                  </el-dropdown>
+                </div>
+              </template>
+            </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
 
-        <!-- 语言 -->
-        <el-table-column prop="language" label="语言" min-width="80">
-          <template #default="{ row }">
-            <span class="text-sm">
-              {{ row.language === 'zh' ? '中文' : row.language === 'en' ? '英文' : row.language === 'jp' ? '日文' : row.language }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <!-- 声音 -->
-        <el-table-column prop="voice" label="音色" min-width="140" />
-
-        <!-- 状态 -->
-        <el-table-column label="状态" min-width="150">
-          <template #default="{ row }">
-            <div class="flex items-center">
-              <span
-                class="status-dot"
-                :class="{
-                  waiting: row.status === 'Queued',
-                  progressing: row.status === 'Running',
-                  success: row.status === 'Completed',
-                  error: row.status === 'Failed',
-                }"
-              ></span>
-              <span class="ml-2 text-sm">
-                <span v-if="row.status === 'Failed'" class="text-red-400">任务失败</span>
-                <span v-else-if="row.status === 'Running'" class="text-blue-400">进行中</span>
-                <span v-else-if="row.status === 'Completed'" class="text-green-400">已完成</span>
-                <span v-else>{{ getStatusLabel(row.status) }}</span>
-              </span>
-              <span v-if="row.status === 'Running' && row.totalSegments > 0" class="ml-2 text-xs text-gray-400">
-                ({{ row.completedSegments }}/{{ row.totalSegments }})
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <!-- 输出文件 -->
-        <el-table-column label="输出文件" min-width="180">
-          <template #default="{ row }">
-            <span v-if="row.outputFile" class="text-sm text-gray-300">{{
-              row.outputFile
-            }}</span>
-            <span v-else-if="row.errorMessage" class="text-xs text-red-400">{{
-              row.errorMessage
-            }}</span>
-            <span v-else class="text-xs text-gray-500">-</span>
-          </template>
-        </el-table-column>
-
-        <!-- 操作 -->
-        <el-table-column label="操作" width="80" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-dropdown
-                trigger="click"
-                @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
+      <!-- 视频导出任务 -->
+      <el-tab-pane :label="t('videoExport')" name="export">
+        <div class="mb-8">
+          <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+            <!-- 标题栏 -->
+            <div class="flex items-center justify-end mb-4">
+              <el-button
+                type="primary"
+                size="small"
+                class="bg-blue-600 hover:bg-blue-700 border-blue-600"
+                @click="fetchExportTasks"
               >
-                <!-- More 图标，slot default 用 span 包一下 -->
-                <span class="more-icon">
-                  <el-icon><More /></el-icon>
-                </span>
-                <template #dropdown>
-                  <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
-                  <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
-                </template>
-              </el-dropdown>
+                <el-icon><Refresh /></el-icon>
+              </el-button>
             </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-  </div>
+
+            <!-- 深色主题表格 -->
+            <el-table
+              :data="exportTasks"
+              class="light-table"
+              :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
+              :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
+              :row-style="{ background: '#ffffff' }"
+              style="width: 100%; background: #ffffff"
+            >
+              <!-- 视频名称 -->
+              <el-table-column prop="videoName" :label="t('videoName')" width="400" />
+
+              <!-- 🆕 总进度（第二列） -->
+              <el-table-column :label="t('totalProgress')" width="200">
+                <template #default="{ row }">
+                  <div class="flex items-center">
+                    <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
+                      <div
+                        class="h-3 rounded-full transition-all duration-300"
+                        :class="{
+                          'bg-blue-500': row.progress < 100,
+                          'bg-green-500': row.progress === 100,
+                        }"
+                        :style="{ width: `${row.progress}%` }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.progress }}%</span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- 字幕类型 -->
+              <el-table-column
+                prop="subtitleType"
+                :label="t('subtitleType')"
+                min-width="120"
+              />
+
+              <!-- 导出状态 -->
+              <el-table-column :label="t('exportStatus')" min-width="150">
+                <template #default="{ row }">
+                  <div class="flex items-center">
+                    <span
+                      class="status-dot"
+                      :class="{
+                        waiting: row.status === 'Queued',
+                        progressing: row.status === 'Running',
+                        success: row.status === 'Completed',
+                        error: row.status === 'Failed',
+                      }"
+                    ></span>
+                    <span class="ml-2 text-sm">
+                      <span v-if="row.status === 'Failed'" class="text-red-400">任务失败</span>
+                      <span v-else-if="row.status === 'Running'" class="text-blue-400">进行中</span>
+                      <span v-else-if="row.status === 'Completed'" class="text-green-400">已完成</span>
+                      <span v-else>{{ getStatusLabel(row.status) }}</span>
+                    </span>
+                  </div>
+                </template>
+              </el-table-column>
+              <!-- 输出文件 -->
+              <el-table-column :label="t('outputFile')" min-width="180">
+                <template #default="{ row }">
+                  <span v-if="row.outputFilename" class="text-sm text-gray-300">{{
+                    row.outputFilename
+                  }}</span>
+                  <span v-else-if="row.errorMessage" class="text-xs text-red-400">{{
+                    row.errorMessage
+                  }}</span>
+                  <span v-else class="text-xs text-gray-500">-</span>
+                </template>
+              </el-table-column>
+              <!-- 操作 -->
+              <el-table-column label="操作" width="80" align="center" fixed="right">
+                <template #default="{ row }">
+                  <div class="action-cell">
+                    <el-dropdown
+                      trigger="click"
+                      @command="(cmd: 'retry' | 'delete' | 'download') => handleCommand(row, cmd)"
+                    >
+                      <!-- More 图标，slot default 用 span 包一下 -->
+                      <span class="more-icon">
+                        <el-icon><More /></el-icon>
+                      </span>
+                      <template #dropdown>
+                        <el-dropdown-item
+                          v-if="row.status === 'Completed' && row.outputFilename"
+                          command="download"
+                          class="text-green-400 hover:text-green-300"
+                        >
+                          {{ t('download') }}
+                        </el-dropdown-item>
+                        <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
+                        <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- TTS配音生成任务 -->
+      <el-tab-pane label="TTS配音生成" name="tts">
+        <div class="mb-8">
+          <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+            <!-- 标题栏 -->
+            <div class="flex items-center justify-end mb-4">
+              <el-button
+                type="primary"
+                size="small"
+                class="bg-blue-600 hover:bg-blue-700 border-blue-600"
+                @click="fetchTTSTasks"
+              >
+                <el-icon><Refresh /></el-icon>
+              </el-button>
+            </div>
+
+            <!-- 深色主题表格 -->
+            <el-table
+              :data="ttsTasks"
+              class="light-table"
+              :header-cell-style="{ background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }"
+              :cell-style="{ background: '#ffffff', color: '#334155', borderColor: '#e2e8f0' }"
+              :row-style="{ background: '#ffffff' }"
+              style="width: 100%; background: #ffffff"
+            >
+              <!-- 视频名称 -->
+              <el-table-column prop="videoName" label="视频名称" width="400" />
+
+              <!-- 总进度条 -->
+              <el-table-column label="进度" width="200">
+                <template #default="{ row }">
+                  <div class="flex items-center">
+                    <div class="w-28 bg-gray-600 rounded-full h-3 mr-2">
+                      <div
+                        class="h-3 rounded-full transition-all duration-300"
+                        :class="{
+                          'bg-blue-500': row.progress < 100,
+                          'bg-green-500': row.progress === 100,
+                        }"
+                        :style="{ width: `${row.progress}%` }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-gray-300 font-semibold whitespace-nowrap">{{ row.progress }}%</span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- 语言 -->
+              <el-table-column prop="language" label="语言" min-width="80">
+                <template #default="{ row }">
+                  <span class="text-sm">
+                    {{ row.language === 'zh' ? '中文' : row.language === 'en' ? '英文' : row.language === 'jp' ? '日文' : row.language }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <!-- 声音 -->
+              <el-table-column prop="voice" label="音色" min-width="140" />
+
+              <!-- 状态 -->
+              <el-table-column label="状态" min-width="150">
+                <template #default="{ row }">
+                  <div class="flex items-center">
+                    <span
+                      class="status-dot"
+                      :class="{
+                        waiting: row.status === 'Queued',
+                        progressing: row.status === 'Running',
+                        success: row.status === 'Completed',
+                        error: row.status === 'Failed',
+                      }"
+                    ></span>
+                    <span class="ml-2 text-sm">
+                      <span v-if="row.status === 'Failed'" class="text-red-400">任务失败</span>
+                      <span v-else-if="row.status === 'Running'" class="text-blue-400">进行中</span>
+                      <span v-else-if="row.status === 'Completed'" class="text-green-400">已完成</span>
+                      <span v-else>{{ getStatusLabel(row.status) }}</span>
+                    </span>
+                    <span v-if="row.status === 'Running' && row.totalSegments > 0" class="ml-2 text-xs text-gray-400">
+                      ({{ row.completedSegments }}/{{ row.totalSegments }})
+                    </span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- 输出文件 -->
+              <el-table-column label="输出文件" min-width="180">
+                <template #default="{ row }">
+                  <span v-if="row.outputFile" class="text-sm text-gray-300">{{
+                    row.outputFile
+                  }}</span>
+                  <span v-else-if="row.errorMessage" class="text-xs text-red-400">{{
+                    row.errorMessage
+                  }}</span>
+                  <span v-else class="text-xs text-gray-500">-</span>
+                </template>
+              </el-table-column>
+
+              <!-- 操作 -->
+              <el-table-column label="操作" width="80" align="center" fixed="right">
+                <template #default="{ row }">
+                  <div class="action-cell">
+                    <el-dropdown
+                      trigger="click"
+                      @command="(cmd: 'retry' | 'delete') => handleCommand(row, cmd)"
+                    >
+                      <!-- More 图标，slot default 用 span 包一下 -->
+                      <span class="more-icon">
+                        <el-icon><More /></el-icon>
+                      </span>
+                      <template #dropdown>
+                        <el-dropdown-item command="retry">{{ t('retry') }}</el-dropdown-item>
+                        <el-dropdown-item command="delete">{{ t('deleteTask') }}</el-dropdown-item>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+  </el-tabs>
 </template>
 
 <style scoped>

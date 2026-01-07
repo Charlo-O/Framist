@@ -6,6 +6,7 @@ import { BACKEND } from '@/composables/ConfigAPI'
 import { getVideoInfo } from '@/composables/GetVideoInfo'
 import { hhmmssToSeconds, secondsToHHMMSS } from '@/composables/TimeFunc'
 import { getCSRFToken } from '@/composables/GetCSRFToken'
+import { NotesAPI } from '@/composables/NotesAPI'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import VideoPlayer from '@/components/WatchVideo/VideoPlayer.vue'
@@ -163,6 +164,9 @@ async function generateNotes() {
     if (result.success) {
       notes.value = result.data
       ElMessage.success(result.message || '笔记生成成功')
+      
+      // 自动保存到数据库
+      await saveNotesToDatabase()
     } else {
       ElMessage.error(result.error || '笔记生成失败')
     }
@@ -175,6 +179,75 @@ async function generateNotes() {
   }
 }
 
+// 将笔记转换为Markdown并保存到数据库
+async function saveNotesToDatabase() {
+  if (videoData.value.id <= 0 || notes.value.length === 0) return
+  
+  try {
+    // 将笔记数组转换为Markdown格式
+    const markdown = notes.value.map(note => {
+      let md = `## ${note.timestamp} - ${note.title}\n\n`
+      md += note.content
+      if (note.imagePath) {
+        md += `\n\n![${note.title}](${note.imagePath})`
+      }
+      return md
+    }).join('\n\n---\n\n')
+    
+    await NotesAPI.saveNotes(videoData.value.id, markdown)
+    console.log('Notes auto-saved to database')
+  } catch (error) {
+    console.error('Failed to auto-save notes:', error)
+  }
+}
+
+// 从数据库加载笔记并解析
+async function loadNotesFromDatabase() {
+  if (videoData.value.id <= 0) return
+  
+  try {
+    const savedMarkdown = await NotesAPI.loadNotes(videoData.value.id)
+    if (!savedMarkdown) return
+
+    const chunks = savedMarkdown.split('\n\n---\n\n')
+    const parsedNotes: typeof notes.value = []
+    
+    for (const chunk of chunks) {
+      // 尝试匹配格式: ## MM:SS - Title
+      const headerMatch = chunk.match(/^## (\d{2}:\d{2}(?::\d{2})?) - (.+?)\n/)
+      if (headerMatch) {
+        const timestamp = headerMatch[1] || '00:00'
+        const title = headerMatch[2] || 'Untitled'
+        let content = chunk.replace(headerMatch[0], '').trim()
+        
+        // 提取图片
+        const imageMatch = content.match(/!\[.*?\]\((.*?)\)$/)
+        let imagePath: string | null = null
+        if (imageMatch && imageMatch[1]) {
+           imagePath = imageMatch[1]
+           content = content.replace(imageMatch[0], '').trim()
+        }
+
+        parsedNotes.push({
+          id: Date.now().toString() + Math.random().toString().slice(2, 8),
+          timestamp,
+          seconds: hhmmssToSeconds(timestamp),
+          title,
+          content,
+          imagePath,
+          isEdited: false
+        })
+      }
+    }
+    
+    if (parsedNotes.length > 0) {
+      notes.value = parsedNotes
+    }
+  } catch (e) {
+    console.error('Failed to load saved notes', e)
+  }
+}
+
 // 开始编辑笔记
 function startEditNote(note: typeof notes.value[0]) {
   editingNoteId.value = note.id
@@ -183,7 +256,7 @@ function startEditNote(note: typeof notes.value[0]) {
 }
 
 // 保存笔记编辑
-function saveEditNote() {
+async function saveEditNote() {
   if (!editingNoteId.value) return
 
   const noteIndex = notes.value.findIndex(n => n.id === editingNoteId.value)
@@ -193,6 +266,9 @@ function saveEditNote() {
       note.title = editingTitle.value
       note.content = editingContent.value
       note.isEdited = true
+      
+      // 保存到数据库
+      await saveNotesToDatabase()
     }
   }
 
@@ -215,8 +291,9 @@ function deleteNote(noteId: string) {
     confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning',
-  }).then(() => {
+  }).then(async () => {
     notes.value = notes.value.filter(n => n.id !== noteId)
+    await saveNotesToDatabase()
     ElMessage.success('已删除')
   }).catch(() => {})
 }
@@ -320,6 +397,7 @@ function goToWatch() {
 
 onMounted(async () => {
   await loadVideoData(fileName.value)
+  await loadNotesFromDatabase()
   await loadMindmap()
 })
 
@@ -341,6 +419,7 @@ watch(
       fileName.value = newFileName
       notes.value = []
       await loadVideoData(newFileName)
+      await loadNotesFromDatabase()
       await loadMindmap()
     }
   },
@@ -349,23 +428,23 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  <div class="min-h-screen bg-paper">
     <!-- 顶部导航栏 -->
-    <header class="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
+    <header class="bg-paper/90 backdrop-blur-md border-b border-ink/5 sticky top-0 z-50">
       <div class="flex items-center justify-between px-6 py-3">
         <!-- 左侧：返回按钮和标题 -->
         <div class="flex items-center space-x-4">
           <button
             @click="goBack"
-            class="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+            class="p-2 rounded-xl text-ink bg-white border border-ink/10 hover:bg-mint/20 transition-all duration-300"
           >
-            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
-            <h1 class="text-lg font-bold text-slate-800">{{ videoData.name || fileName }}</h1>
-            <p class="text-sm text-slate-500">笔记编辑器</p>
+            <h1 class="text-lg font-display font-bold text-ink">{{ videoData.name || fileName }}</h1>
+            <p class="text-sm text-mist font-medium mt-0.5">笔记编辑器</p>
           </div>
         </div>
 
@@ -373,14 +452,14 @@ watch(
         <div class="flex items-center space-x-3">
           <button
             @click="goToWatch"
-            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+            class="px-4 py-2 text-sm font-medium text-ink bg-white border border-ink/10 hover:bg-mint/20 rounded-xl transition-all"
           >
             返回视频
           </button>
           <button
             @click="exportMarkdown"
             :disabled="notes.length === 0"
-            class="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+            class="px-4 py-2 text-sm font-medium text-ink bg-white border border-ink/10 hover:bg-mint hover:border-mint disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all"
           >
             📤 导出笔记
           </button>
@@ -391,8 +470,8 @@ watch(
     <!-- 主内容区域 -->
     <div class="flex h-[calc(100vh-65px)]">
       <!-- 左侧：视频播放器 (40%) -->
-      <div class="w-2/5 p-4 border-r border-slate-200 flex flex-col">
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-shrink-0">
+      <div class="w-2/5 p-4 border-r border-ink/5 flex flex-col bg-paper">
+        <div class="bg-white rounded-3xl shadow-sm border border-ink/5 overflow-hidden flex-shrink-0">
           <div class="aspect-video">
             <VideoPlayer
               ref="playerRef"
@@ -406,28 +485,33 @@ watch(
         </div>
 
         <!-- 视频信息 -->
-        <div class="mt-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex-shrink-0">
+        <div class="mt-4 bg-white rounded-3xl shadow-sm border border-ink/5 p-4 flex-shrink-0">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm text-slate-500">当前时间</span>
-            <span class="text-sm font-mono text-blue-600">{{ secondsToHHMMSS(currentTime) }}</span>
+            <span class="text-sm text-mist font-medium">当前时间</span>
+            <span class="text-sm font-mono text-ink font-bold">{{ secondsToHHMMSS(currentTime) }}</span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">视频时长</span>
-            <span class="text-sm font-mono text-slate-700">{{ videoData.videoLength }}</span>
+            <span class="text-sm text-mist font-medium">视频时长</span>
+            <span class="text-sm font-mono text-ink">{{ videoData.videoLength }}</span>
           </div>
         </div>
 
         <!-- 风格选择 -->
-        <div class="mt-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex-shrink-0">
-          <label class="block text-sm font-medium text-slate-700 mb-2">📝 笔记生成风格</label>
-          <select
-            v-model="noteStyle"
-            class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-700"
-          >
-            <option value="professional">📋 专业文档 - 严谨精炼</option>
-            <option value="blog">✍️ 博客风格 - 轻松易读</option>
-            <option value="tutorial">📚 教程风格 - 循序渐进</option>
-          </select>
+        <div class="mt-4 bg-white rounded-3xl shadow-sm border border-ink/5 p-4 flex-shrink-0">
+          <label class="block text-sm font-bold text-ink mb-2">📝 笔记生成风格</label>
+          <div class="relative">
+            <select
+              v-model="noteStyle"
+              class="w-full px-4 py-3 border border-ink/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent bg-paper text-ink appearance-none"
+            >
+              <option value="professional">📋 专业文档 - 严谨精炼</option>
+              <option value="blog">✍️ 博客风格 - 轻松易读</option>
+              <option value="tutorial">📚 教程风格 - 循序渐进</option>
+            </select>
+             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+             </div>
+          </div>
         </div>
 
         <!-- 生成按钮 -->
@@ -435,10 +519,10 @@ watch(
           <button
             @click="generateNotes"
             :disabled="isGenerating || videoData.id <= 0"
-            class="w-full py-4 text-lg font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+            class="w-full py-4 text-lg font-bold text-ink bg-mint hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl transition-all duration-300 shadow-lg shadow-mint/20 hover:scale-[1.02] active:scale-100 flex items-center justify-center space-x-2"
           >
             <span v-if="isGenerating" class="flex items-center">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -449,9 +533,9 @@ watch(
         </div>
 
         <!-- 快速操作提示 -->
-        <div class="mt-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4 border border-blue-100">
-          <h4 class="text-sm font-medium text-blue-800 mb-2">💡 使用提示</h4>
-          <ul class="text-xs text-blue-600 space-y-1">
+        <div class="mt-4 bg-paper rounded-2xl p-4 border border-ink/5">
+          <h4 class="text-sm font-bold text-ink mb-2">💡 使用提示</h4>
+          <ul class="text-xs text-mist space-y-1 font-medium">
             <li>• 点击笔记中的时间戳可跳转视频</li>
             <li>• 支持编辑生成的笔记内容</li>
             <li>• 可导出为Markdown格式</li>
@@ -460,17 +544,17 @@ watch(
       </div>
 
       <!-- 右侧：笔记编辑区域 (60%) -->
-      <div class="w-3/5 flex flex-col">
+      <div class="w-3/5 flex flex-col bg-paper">
         <!-- Tab切换 -->
-        <div class="bg-white border-b border-slate-200 px-4 py-2 flex-shrink-0">
+        <div class="bg-paper border-b border-ink/5 px-4 py-2 flex-shrink-0">
           <nav class="flex space-x-2">
             <button
               @click="activeTab = 'notes'"
               :class="[
-                'flex-1 px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300',
+                'flex-1 px-6 py-3 text-sm font-bold rounded-xl transition-all duration-300',
                 activeTab === 'notes'
-                  ? 'text-white bg-blue-500 shadow-lg'
-                  : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100',
+                  ? 'text-ink bg-mint shadow-lg shadow-mint/20'
+                  : 'text-mist hover:text-ink hover:bg-white',
               ]"
             >
               📝 笔记
@@ -478,10 +562,10 @@ watch(
             <button
               @click="activeTab = 'mindmap'"
               :class="[
-                'flex-1 px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300',
+                'flex-1 px-6 py-3 text-sm font-bold rounded-xl transition-all duration-300',
                 activeTab === 'mindmap'
-                  ? 'text-white bg-blue-500 shadow-lg'
-                  : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100',
+                  ? 'text-ink bg-mint shadow-lg shadow-mint/20'
+                  : 'text-mist hover:text-ink hover:bg-white',
               ]"
             >
               🧠 思维导图
@@ -495,15 +579,15 @@ watch(
           <div v-show="activeTab === 'notes'">
             <!-- 空状态 -->
             <div v-if="notes.length === 0 && !isGenerating" class="flex flex-col items-center justify-center h-full text-center py-16">
-              <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
+              <div class="w-24 h-24 bg-paper rounded-full flex items-center justify-center mb-6 shadow-float border border-ink/5">
                 <span class="text-4xl">📝</span>
               </div>
-              <h3 class="text-xl font-bold text-slate-800 mb-2">还没有笔记</h3>
-              <p class="text-slate-500 mb-6">点击左侧"AI生成笔记"按钮开始</p>
+              <h3 class="text-xl font-display font-bold text-ink mb-2">还没有笔记</h3>
+              <p class="text-mist font-medium mb-6">点击左侧"AI生成笔记"按钮开始</p>
               <button
                 @click="generateNotes"
                 :disabled="videoData.id <= 0"
-                class="px-8 py-3 text-white bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl font-medium hover:shadow-lg transition-all"
+                class="px-8 py-3 text-ink bg-mint rounded-xl font-bold shadow-lg shadow-mint/20 hover:scale-[1.05] transition-all"
               >
                 🤖 开始生成
               </button>
@@ -514,56 +598,56 @@ watch(
               <div
                 v-for="note in notes"
                 :key="note.id"
-                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow"
+                class="bg-white rounded-3xl shadow-sm border border-ink/5 overflow-hidden hover:shadow-md transition-shadow"
               >
                 <!-- 笔记头部 -->
-                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-100">
+                <div class="flex items-center justify-between p-4 bg-paper border-b border-ink/5">
                   <div class="flex items-center space-x-3">
                     <button
                       @click="seekTo(note.seconds)"
-                      class="px-3 py-1 text-sm font-mono text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                      class="px-3 py-1 text-sm font-mono text-ink bg-mint/20 hover:bg-mint/40 rounded-lg transition-colors font-bold"
                     >
                       {{ note.timestamp }}
                     </button>
-                    <h3 v-if="editingNoteId !== note.id" class="font-semibold text-slate-800">
+                    <h3 v-if="editingNoteId !== note.id" class="font-bold text-ink">
                       {{ note.title }}
                     </h3>
                     <input
                       v-else
                       v-model="editingTitle"
-                      class="flex-1 px-3 py-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      class="flex-1 px-3 py-1 border border-ink/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint bg-white"
                       placeholder="章节标题"
                     />
                   </div>
                   
                   <div class="flex items-center space-x-2">
-                    <span v-if="note.isEdited" class="text-xs text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
+                    <span v-if="note.isEdited" class="text-xs text-coral bg-coral/10 px-2 py-1 rounded-lg font-medium">
                       已编辑
                     </span>
                     <button
                       v-if="editingNoteId !== note.id"
                       @click="startEditNote(note)"
-                      class="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      class="p-2 text-mist hover:text-ink hover:bg-paper rounded-lg transition-colors"
                     >
                       ✏️
                     </button>
                     <template v-else>
                       <button
                         @click="saveEditNote"
-                        class="px-3 py-1 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                        class="px-3 py-1 text-sm text-ink bg-mint hover:bg-opacity-90 rounded-lg transition-colors font-bold"
                       >
                         保存
                       </button>
                       <button
                         @click="cancelEditNote"
-                        class="px-3 py-1 text-sm text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        class="px-3 py-1 text-sm text-mist bg-paper hover:bg-gray-200 rounded-lg transition-colors font-medium border border-ink/5"
                       >
                         取消
                       </button>
                     </template>
                     <button
                       @click="deleteNote(note.id)"
-                      class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      class="p-2 text-mist hover:text-coral hover:bg-coral/10 rounded-lg transition-colors"
                     >
                       🗑️
                     </button>
@@ -577,20 +661,20 @@ watch(
                     <img
                       :src="`${BACKEND}${note.imagePath}`"
                       :alt="note.timestamp"
-                      class="w-full max-h-64 object-contain rounded-xl border border-slate-200 cursor-pointer hover:shadow-lg transition-shadow"
+                      class="w-full max-h-64 object-contain rounded-2xl border border-ink/5 cursor-pointer hover:shadow-lg transition-shadow"
                       @click="seekTo(note.seconds)"
                     />
                   </div>
 
                   <!-- 内容文本 -->
-                  <div v-if="editingNoteId !== note.id" class="prose prose-sm max-w-none text-slate-700">
+                  <div v-if="editingNoteId !== note.id" class="prose prose-sm max-w-none text-ink">
                     <div v-html="simpleMarkdownToHtml(note.content)"></div>
                   </div>
                   <textarea
                     v-else
                     v-model="editingContent"
                     rows="8"
-                    class="w-full p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    class="w-full p-3 border border-ink/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-mint resize-y bg-paper"
                     placeholder="笔记内容（支持Markdown）"
                   ></textarea>
                 </div>
@@ -599,7 +683,7 @@ watch(
           </div>
 
           <!-- 思维导图Tab -->
-          <div v-show="activeTab === 'mindmap'" class="bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[500px]">
+          <div v-show="activeTab === 'mindmap'" class="bg-white rounded-3xl shadow-sm border border-ink/5 min-h-[500px]">
             <MindmapEditor
               :initialContent="mindmapContent"
               @contentChange="handleMindmapContentChange"
@@ -623,17 +707,17 @@ watch(
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #E5E5E5; /* border gray */
   border-radius: 3px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #8E8E8E; /* mist */
 }
 
 /* Prose样式覆盖 */
 .prose img {
-  border-radius: 0.75rem;
+  border-radius: 1rem; /* rounded-2xl */
   margin: 1rem 0;
 }
 

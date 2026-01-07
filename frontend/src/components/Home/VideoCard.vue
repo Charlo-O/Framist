@@ -319,8 +319,9 @@ const modelChecked = computed({
   <!-- ───────────── GRID STYLE (card) ───────────── -->
   <div
     v-if="view === 'grid'"
-    class="video-card-hover relative bg-gray-500/30 rounded-2xl overflow-hidden border border-gray-400/30 shadow-lg hover:shadow-xl group transition-all duration-300 hover:transform hover:scale-105"
+    class="video-card-hover relative rounded-2xl overflow-hidden shadow-lg hover:shadow-xl group transition-all duration-300 hover:transform hover:scale-105"
   >
+    <!-- Checkbox -->
     <el-checkbox
       v-model="modelChecked"
       :label="''"
@@ -328,39 +329,51 @@ const modelChecked = computed({
       :class="batchMode ? 'opacity-100' : ''"
       size="large"
     />
-    <img :src="thumbnailUrl || FALLBACK_IMG" class="w-full h-40 object-cover" :alt="video.name" />
+    
+    <!-- Thumbnail Image -->
+    <img :src="thumbnailUrl || FALLBACK_IMG" class="w-full h-48 object-cover" :alt="video.name" />
+    
+    <!-- Duration Badge -->
     <div
-      class="absolute top-2 right-2 bg-blue-500/90 text-white text-sm font-medium px-3 py-1 rounded-md"
+      class="absolute top-2 right-2 bg-black/60 text-white text-xs font-medium px-2 py-1 rounded"
     >
       {{ video.length }}
     </div>
+    
+    <!-- Play Button Overlay (on hover) -->
     <div
-      class="absolute left-0 right-0 top-0 h-40 bg-black/30 backdrop-blur-[1px] flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-300"
+      class="absolute left-0 right-0 top-0 h-48 bg-black/30 backdrop-blur-[1px] flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-300"
     >
       <a
         :href="watchUrl"
-        class="w-12 h-12 rounded-full bg-blue-500/80 flex items-center justify-center hover:bg-blue-500/90 transition-all cursor-pointer"
+        class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-all cursor-pointer shadow-lg"
       >
-        <Play :size="24" class="text-white ml-1" />
+        <Play :size="28" class="text-gray-800 ml-1" />
       </a>
     </div>
-
-    <div class="p-4">
-      <div v-if="!isEditing" class="flex items-center gap-2 mb-2">
+    
+    <!-- Bottom Gradient Overlay with Title -->
+    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
+      <div v-if="!isEditing" class="flex items-center gap-2">
         <el-tooltip :content="video.name" placement="top">
-          <h3 class="font-semibold text-white truncate flex-1 text-lg">
+          <h3 class="font-semibold text-white truncate flex-1 text-base drop-shadow-lg">
             <a
               :href="watchUrl"
-              class="no-underline text-inherit hover:text-blue-300 transition-colors"
+              class="no-underline text-inherit hover:text-blue-200 transition-colors"
             >
               {{ video.name }}
             </a>
           </h3>
         </el-tooltip>
-        <div class="opacity-0 group-hover:opacity-100 transition-all duration-200">
+        
+        <!-- Dropdown Menu -->
+        <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1">
+          <button class="text-white hover:text-blue-200 transition-colors p-1" @click.stop="startEditing">
+            <SquarePen :size="16" class="drop-shadow" />
+          </button>
           <el-dropdown trigger="click">
-            <button class="text-white hover:text-blue-300 transition-colors p-1">
-              <el-icon class="text-xl"><More /></el-icon>
+            <button class="text-white hover:text-blue-200 transition-colors p-1">
+              <el-icon class="text-lg"><More /></el-icon>
             </button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -400,31 +413,20 @@ const modelChecked = computed({
           </el-dropdown>
         </div>
       </div>
-      <div v-else class="flex items-center gap-2 mb-2">
+      
+      <!-- Editing Mode -->
+      <div v-else class="flex items-center gap-2">
         <input
           ref="inputRef"
           v-model="editingName"
-          class="flex-1 font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-white/50"
+          class="flex-1 font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-white/50 text-sm"
           @keydown="handleKeydown"
           @blur="saveEdit"
         />
       </div>
-      <p class="text-white/70 text-sm mb-4 line-clamp-2">
-        {{ video.description }}
-      </p>
-
-      <div class="flex justify-between items-center pt-3 border-t border-white/20">
-        <span class="text-xs text-white/60">{{ video.last_modified }}</span>
-      </div>
-    </div>
-
-    <!-- Edit icon positioned at bottom right -->
-    <div
-      class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200"
-    >
-      <button class="text-white hover:text-blue-300 transition-colors" @click.stop="startEditing">
-        <SquarePen :size="20" class="text-white" />
-      </button>
+      
+      <!-- Last Modified -->
+      <div class="text-xs text-white/70 mt-1">{{ video.last_modified }}</div>
     </div>
   </div>
 

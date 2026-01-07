@@ -1,41 +1,41 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-    <!-- 顶部导航栏 -->
-    <header class="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
-      <div class="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-        <div class="flex items-center space-x-4">
+  <div class="h-full bg-paper overflow-y-auto scrollbar-premium">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-paper bg-opacity-90 backdrop-blur-md border-b border-ink border-opacity-5">
+      <div class="max-w-5xl mx-auto px-8 py-6 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
           <button
             @click="goBack"
-            class="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+            class="p-2 rounded-xl text-ink hover:bg-mint hover:bg-opacity-20 transition-all duration-300"
           >
-            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
-            <h1 class="text-2xl font-bold text-slate-800">⚙️ 系统设置</h1>
-            <p class="text-sm text-slate-500">配置应用的各项功能参数</p>
+            <h1 class="text-3xl font-display font-bold text-ink">{{ t('settingsTitle') }}</h1>
+            <p class="text-mist font-medium mt-1">{{ t('configureExperience') }}</p>
           </div>
         </div>
 
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-4">
           <button
             @click="resetSettings"
             :disabled="loading || saving"
-            class="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn-ghost text-sm px-6 py-3"
           >
-            🔄 重置默认
+            {{ t('resetToDefault') }}
           </button>
           <button
             @click="saveSettings"
             :disabled="loading || saving"
-            class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            class="btn-breathing px-8 py-3 flex items-center shadow-lg shadow-mint/20"
           >
             <span
               v-if="saving"
-              class="inline-block w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"
+              class="inline-block w-4 h-4 mr-2 border-2 border-ink border-t-transparent rounded-full animate-spin"
             ></span>
-            {{ saving ? '保存中...' : '💾 保存设置' }}
+            {{ saving ? t('saving') : t('saveSettings') }}
           </button>
         </div>
       </div>
@@ -44,192 +44,216 @@
     <!-- Loading Overlay -->
     <div
       v-if="loading"
-      class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-paper bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50"
     >
-      <div class="flex flex-col items-center space-y-4">
-        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span class="text-gray-600 text-lg">加载设置中...</span>
+      <div class="flex flex-col items-center">
+        <div class="loader-gist"><div class="loader-gist-bar"></div></div>
+        <span class="text-mist font-medium mt-6">{{ t('loadingSettings') }}</span>
       </div>
     </div>
 
-    <!-- 主要内容区域 -->
-    <main class="max-w-6xl mx-auto px-6 py-8 space-y-8">
-      <!-- LLM设置 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-teal-100 text-teal-600 rounded-lg flex items-center justify-center mr-3 text-lg">🤖</span>
-          LLM设置
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-8 py-10 space-y-12 pb-24">
+      
+      <!-- LLM Settings -->
+      <section class="card-focus bg-white p-8 relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-mint opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <h2 class="text-2xl font-display font-bold text-ink mb-8 flex items-center">
+          <span class="w-10 h-10 bg-mint bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
+            <span class="text-xl">🤖</span>
+          </span>
+          {{ t('llmSettings') }}
         </h2>
         
-        <div class="space-y-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-            <div class="flex items-center space-x-2">
-              <el-input
-                v-model="currentApiKey"
-                type="password"
-                show-password
-                placeholder="输入API密钥"
-                class="flex-1"
+        <div class="space-y-8 pl-14">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('modelSelection') }}</label>
+              <div class="relative">
+                <select
+                  v-model="settings.selectedModelProvider"
+                  class="input-framist appearance-none"
+                >
+                  <option v-for="provider in providerOptions" :key="provider.value" :value="provider.value">
+                    {{ provider.label }}
+                  </option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('modelName') }}</label>
+              <input
+                v-model="currentModelName"
+                type="text"
+                class="input-framist"
+                :placeholder="getDefaultModelName()"
               />
-              <button
-                @click="copyToClipboard(currentApiKey)"
-                class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm text-gray-700 whitespace-nowrap"
-              >
-                复制
-              </button>
+              <p class="mt-2 text-xs text-mist font-medium">
+                {{ t('defaultLabel') }}: {{ getDefaultModelName() }}
+              </p>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Base URL</label>
+            <label class="block text-sm font-bold text-ink mb-2">API Key</label>
+            <div class="flex items-center space-x-3">
+              <el-input
+                v-model="currentApiKey"
+                type="password"
+                show-password
+                placeholder="{{ t('enterApiKey') }}"
+                class="flex-1 input-framist-wrapper"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-ink mb-2">Base URL</label>
             <input
               v-model="currentBaseUrl"
               type="url"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="输入API基础URL"
+              class="input-framist w-full"
+              placeholder="API endpoint URL"
             />
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">模型提供商选择</label>
-            <select
-              v-model="settings.selectedModelProvider"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option v-for="provider in providerOptions" :key="provider.value" :value="provider.value">
-                {{ provider.label }}
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">模型名称</label>
-            <input
-              v-model="currentModelName"
-              type="text"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              :placeholder="getDefaultModelName()"
-            />
-            <p class="mt-1 text-xs text-gray-500">
-              留空使用默认模型（{{ getDefaultModelName() }}）
-            </p>
-          </div>
-
-          <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-8 pt-4 border-t border-ink border-opacity-5">
             <el-switch
               v-model="settings.useProxy"
-              active-text="使用代理"
-              inactive-text="不使用代理"
+              :active-text="t('useProxy')"
+              :inactive-text="t('directConnection')"
+              class="framist-switch"
             />
             <el-switch
               v-model="settings.enableThinking"
-              active-text="启用思考"
-              inactive-text="普通模型"
+              :active-text="t('enableThinking')"
+              :inactive-text="t('standardMode')"
+              class="framist-switch"
             />
-          </div>
-
-          <div class="flex justify-end">
+            <div class="flex-1"></div>
             <button
               @click="testLLMConnection"
               :disabled="connectionTesting"
-              class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="btn-ghost text-sm px-6 py-2"
             >
-              {{ connectionTesting ? '测试中...' : '测试连接' }}
+              {{ connectionTesting ? t('testing') : t('testConnection') }}
             </button>
           </div>
         </div>
       </section>
 
-      <!-- 界面设置 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mr-3 text-lg">🎨</span>
-          界面设置
+      <!-- Interface Settings -->
+      <section class="card-focus bg-white p-8 relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-mint opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <h2 class="text-2xl font-display font-bold text-ink mb-8 flex items-center">
+          <span class="w-10 h-10 bg-mint bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
+            <span class="text-xl">🎨</span>
+          </span>
+          {{ t('interfaceSettings') }}
         </h2>
         
-        <div class="space-y-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">原始语言</label>
-            <select
-              v-model="settings.rawLanguage"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-            </select>
+        <div class="space-y-6 pl-14">
+          <div class="max-w-md">
+            <label class="block text-sm font-bold text-ink mb-2">{{ t('originalLanguage') }}</label>
+            <div class="relative">
+              <select
+                v-model="settings.rawLanguage"
+                class="input-framist appearance-none"
+              >
+                <option value="zh">中文 (Chinese)</option>
+                <option value="en">English</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- 字幕设置 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mr-3 text-lg">📝</span>
-          字幕设置
+      <!-- Subtitle Styling -->
+      <section class="card-focus bg-white p-8 relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-mint opacity-0 group-hover:opacity-100 transition-opacity"></div>
+         <h2 class="text-2xl font-display font-bold text-ink mb-8 flex items-center">
+          <span class="w-10 h-10 bg-mint bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
+            <span class="text-xl">📝</span>
+          </span>
+          {{ t('subtitleSettings') }}
         </h2>
 
-        <!-- 字幕类型切换 -->
-        <div class="mb-6">
-          <div class="flex bg-gray-100 rounded-lg p-1 w-fit">
+        <!-- Style Type Toggle -->
+        <div class="pl-14 mb-8">
+          <div class="inline-flex bg-paper rounded-xl p-1.5 border border-ink border-opacity-5">
             <button
               @click="subtitleType = 'raw'"
               :class="[
-                'py-2 px-6 text-sm font-medium rounded-md transition-colors',
+                'py-2 px-8 text-sm font-bold rounded-lg transition-all duration-300',
                 subtitleType === 'raw'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700',
+                  ? 'bg-white text-ink shadow-float'
+                  : 'text-mist hover:text-ink',
               ]"
             >
-              原文字幕
+              {{ t('originalSubtitle') }}
             </button>
             <button
               @click="subtitleType = 'foreign'"
               :class="[
-                'py-2 px-6 text-sm font-medium rounded-md transition-colors',
+                'py-2 px-8 text-sm font-bold rounded-lg transition-all duration-300',
                 subtitleType === 'foreign'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700',
+                  ? 'bg-white text-ink shadow-float'
+                  : 'text-mist hover:text-ink',
               ]"
             >
-              译文字幕
+              {{ t('translatedSubtitle') }}
             </button>
           </div>
-          <p class="mt-2 text-sm text-gray-500">
-            当前编辑：{{ subtitleType === 'raw' ? '原文' : '外文' }}字幕样式
-          </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- 字体设置 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pl-14">
+          <!-- Font Family -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">字体系列</label>
-            <select
-              :value="currentSubtitleSettings.fontFamily"
-              @input="updateCurrentSubtitleSettings('fontFamily', ($event.target as HTMLSelectElement).value)"
-              class="w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="宋体">宋体</option>
-              <option value="微软雅黑">微软雅黑</option>
-              <option value="Arial">Arial</option>
-            </select>
+            <label class="block text-sm font-bold text-ink mb-2">{{ t('fontFamily') }}</label>
+            <div class="relative">
+              <select
+                :value="currentSubtitleSettings.fontFamily"
+                @input="updateCurrentSubtitleSettings('fontFamily', ($event.target as HTMLSelectElement).value)"
+                class="input-framist appearance-none"
+              >
+                <option value="宋体">宋体 (SimSun)</option>
+                <option value="微软雅黑">微软雅黑 (Microsoft YaHei)</option>
+                <option value="Arial">Arial</option>
+                <option value="Noto Sans SC">Noto Sans SC</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
           </div>
 
-          <!-- 字体颜色 -->
+          <!-- Font Color -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">字体颜色</label>
-            <input
-              type="color"
-              :value="currentSubtitleSettings.fontColor"
-              @input="updateCurrentSubtitleSettings('fontColor', ($event.target as HTMLInputElement).value)"
-              class="w-full h-10 rounded border cursor-pointer"
-            />
+            <label class="block text-sm font-bold text-ink mb-2">{{ t('fontColor') }}</label>
+            <div class="flex items-center space-x-4">
+              <div class="w-12 h-12 rounded-xl border border-mist border-opacity-20 overflow-hidden shadow-sm">
+                <input
+                  type="color"
+                  :value="currentSubtitleSettings.fontColor"
+                  @input="updateCurrentSubtitleSettings('fontColor', ($event.target as HTMLInputElement).value)"
+                  class="w-full h-full p-0 border-0 cursor-pointer transform scale-150"
+                />
+              </div>
+              <span class="font-mono text-mist uppercase">{{ currentSubtitleSettings.fontColor }}</span>
+            </div>
           </div>
 
-          <!-- 字体大小 -->
+          <!-- Font Size -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              字体大小: {{ currentSubtitleSettings.fontSize }}px
+            <label class="block text-sm font-bold text-ink mb-2">
+              {{ t('fontSize') }}: {{ currentSubtitleSettings.fontSize }}px
             </label>
             <input
               type="range"
@@ -237,14 +261,14 @@
               @input="updateCurrentSubtitleSettings('fontSize', parseInt(($event.target as HTMLInputElement).value))"
               min="12"
               max="48"
-              class="w-full"
+              class="framist-range w-full"
             />
           </div>
 
-          <!-- 距底边距离 -->
+          <!-- Margin Bottom -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              距底边距离: {{ bottomDistanceProxy }}px
+            <label class="block text-sm font-bold text-ink mb-2">
+              {{ t('bottomDistance') }}: {{ bottomDistanceProxy }}px
             </label>
             <input
               type="range"
@@ -252,279 +276,259 @@
               min="20"
               max="200"
               step="10"
-              class="w-full"
+              class="framist-range w-full"
             />
           </div>
         </div>
 
-        <!-- 预览 -->
-        <div class="mt-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">实时预览</label>
+        <!-- Preview -->
+        <div class="mt-8 pl-14">
+          <label class="block text-sm font-bold text-ink mb-3">{{ t('realtimePreview') }}</label>
           <div
-            class="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-800 text-center"
-            :style="{
-              fontFamily: currentSubtitleSettings.fontFamily,
-              fontSize: currentSubtitleSettings.fontSize + 'px',
-              color: currentSubtitleSettings.fontColor,
-              fontWeight: currentSubtitleSettings.fontWeight,
-            }"
+            class="p-12 border-2 border-dashed border-ink border-opacity-10 rounded-2xl bg-paper flex items-center justify-center relative overflow-hidden"
           >
-            {{ currentSubtitleSettings.previewText }}
+             <!-- Preview Grid Background -->
+             <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#2D2D2D 1px, transparent 1px); background-size: 20px 20px;"></div>
+             
+             <div
+              class="text-center relative z-10 transition-all duration-300"
+              :style="{
+                fontFamily: currentSubtitleSettings.fontFamily,
+                fontSize: currentSubtitleSettings.fontSize + 'px',
+                color: currentSubtitleSettings.fontColor,
+                fontWeight: currentSubtitleSettings.fontWeight,
+                textShadow: currentSubtitleSettings.textShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
+              }"
+            >
+              {{ currentSubtitleSettings.previewText }}
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- 转录引擎设置 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mr-3 text-lg">🎤</span>
-          转录引擎设置
+      <!-- Transcription Engine -->
+      <section class="card-focus bg-white p-8 relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-mint opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <h2 class="text-2xl font-display font-bold text-ink mb-8 flex items-center">
+          <span class="w-10 h-10 bg-mint bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
+            <span class="text-xl">🎤</span>
+          </span>
+          {{ t('transcriptionSettings') }}
         </h2>
         
-        <div class="space-y-6">
+        <div class="space-y-8 pl-14">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">转录引擎</label>
-            <select
-              v-model="settings.transcriptionPrimaryEngine"
-              class="w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="whisper_cpp">Whisper.cpp (本地C++实现, CPU/GPU)</option>
-              <option value="elevenlabs">ElevenLabs Speech-to-Text</option>
-              <option value="alibaba">阿里巴巴 DashScope</option>
-              <option value="openai_whisper">OpenAI Whisper API</option>
-            </select>
+            <label class="block text-sm font-bold text-ink mb-2">{{ t('primaryTranscriptionEngine') }}</label>
+            <div class="relative">
+              <select
+                v-model="settings.transcriptionPrimaryEngine"
+                class="input-framist appearance-none"
+              >
+                <option value="whisper_cpp">Whisper.cpp (Local C++/GPU High Performance)</option>
+                <option value="elevenlabs">ElevenLabs Speech-to-Text</option>
+                <option value="alibaba">Alibaba DashScope</option>
+                <option value="openai_whisper">OpenAI Whisper API</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
           </div>
 
-          <!-- Whisper.cpp 特定设置 -->
-          <div v-if="settings.transcriptionPrimaryEngine === 'whisper_cpp'" class="space-y-4 border-t pt-4 mt-4">
-            <div class="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p class="text-sm text-blue-700">
-                ✅ Whisper.cpp: 官方C++实现，Docker镜像小(~500MB)，支持CPU-only和GPU加速
+          <!-- Whisper.cpp Settings -->
+          <div v-if="settings.transcriptionPrimaryEngine === 'whisper_cpp'" class="space-y-6 animate-fade-in-up">
+            <div class="p-4 bg-paper rounded-xl border border-ink border-opacity-5">
+              <p class="text-sm text-mist leading-relaxed">
+                <strong class="text-ink">Whisper.cpp</strong> {{ t('whisperCppDesc') }}
               </p>
             </div>
 
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
+            <div class="flex items-center justify-between p-4 border border-ink border-opacity-10 rounded-xl">
               <div>
-                <span class="text-sm font-medium text-gray-700">🚀 启用GPU加速</span>
-                <p class="text-xs text-gray-500 mt-1">
-                  {{ settings.useGpu ? 'CUDA GPU加速 (需要NVIDIA GPU)' : 'CPU-only模式 (无需GPU)' }}
+                <span class="text-base font-bold text-ink block">{{ t('gpuAcceleration') }}</span>
+                <p class="text-xs text-mist mt-1">
+                  {{ settings.useGpu ? t('cudaEnabled') : t('cpuOnlyMode') }}
                 </p>
               </div>
-              <el-switch v-model="settings.useGpu" />
+              <el-switch v-model="settings.useGpu" class="framist-switch" />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">GGML模型</label>
-              <select
-                v-model="settings.fwsrModel"
-                class="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="tiny">tiny (~75 MB)</option>
-                <option value="base">base (~142 MB)</option>
-                <option value="small">small (~466 MB)</option>
-                <option value="medium">medium (~1.5 GB)</option>
-                <option value="large-v3">large-v3 (~3.1 GB) ✅</option>
-              </select>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('modelSize') }}</label>
+              <div class="relative">
+                <select
+                  v-model="settings.fwsrModel"
+                  class="input-framist appearance-none"
+                >
+                  <option value="tiny">tiny (~75 MB)</option>
+                  <option value="base">base (~142 MB)</option>
+                  <option value="small">small (~466 MB)</option>
+                  <option value="medium">medium (~1.5 GB)</option>
+                  <option value="large-v3">large-v3 (~3.1 GB) {{ t('recommended') }}</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 阿里巴巴 DashScope 设置 -->
-          <div v-if="settings.transcriptionPrimaryEngine === 'alibaba'" class="space-y-4 border-t pt-4 mt-4">
-            <div class="p-3 bg-purple-50 border border-purple-200 rounded-md">
-              <p class="text-sm text-purple-700">
-                ✅ 阿里巴巴 DashScope: 实时语音识别，支持多种语言和方言
+          <!-- Alibaba DashScope Settings -->
+          <div v-if="settings.transcriptionPrimaryEngine === 'alibaba'" class="space-y-6 animate-fade-in-up">
+             <div class="p-4 bg-paper rounded-xl border border-ink border-opacity-5">
+              <p class="text-sm text-mist leading-relaxed">
+                <strong class="text-ink">Alibaba DashScope</strong> {{ t('alibabaDesc') }}
               </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+              <label class="block text-sm font-bold text-ink mb-2">API Key</label>
               <el-input
                 v-model="settings.transcriptionAlibabaApiKey"
                 type="password"
                 show-password
-                placeholder="输入 DashScope API Key"
+                placeholder="DashScope API Key"
+                class="input-framist-wrapper"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                可在 <a href="https://dashscope.console.aliyun.com/" target="_blank" class="text-blue-600 hover:underline">DashScope 控制台</a> 获取
-              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">模型选择</label>
-              <select
-                v-model="settings.transcriptionAlibabaModel"
-                class="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="paraformer-realtime-v2">Paraformer 实时 v2 (推荐)</option>
-                <option value="paraformer-v2">Paraformer v2</option>
-              </select>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('model') }}</label>
+              <div class="relative">
+                <select
+                  v-model="settings.transcriptionAlibabaModel"
+                  class="input-framist appearance-none"
+                >
+                  <option value="paraformer-realtime-v2">Paraformer Realtime v2 ({{ t('recommended') }})</option>
+                  <option value="paraformer-v2">Paraformer v2</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ink">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">自定义模型名称（可选）</label>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('customModelName') }}</label>
               <input
                 v-model="settings.transcriptionAlibabaCustomModel"
                 type="text"
-                class="w-full p-2 border border-gray-300 rounded-md"
+                class="input-framist"
                 :placeholder="settings.transcriptionAlibabaModel || 'paraformer-realtime-v2'"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                留空使用上方选择的模型，填写则使用自定义模型名称
-              </p>
+              <p class="mt-2 text-xs text-mist">{{ t('overrideModelIdNote') }}</p>
             </div>
           </div>
 
-          <!-- OpenAI Whisper API 设置 -->
-          <div v-if="settings.transcriptionPrimaryEngine === 'openai_whisper'" class="space-y-4 border-t pt-4 mt-4">
-            <div class="p-3 bg-green-50 border border-green-200 rounded-md">
-              <p class="text-sm text-green-700">
-                ✅ OpenAI Whisper API: 云端高精度转录服务
+          <!-- OpenAI Whisper Settings -->
+          <div v-if="settings.transcriptionPrimaryEngine === 'openai_whisper'" class="space-y-6 animate-fade-in-up">
+            <div class="p-4 bg-paper rounded-xl border border-ink border-opacity-5">
+              <p class="text-sm text-mist leading-relaxed">
+                <strong class="text-ink">OpenAI Whisper</strong> {{ t('openaiWhisperDesc') }}
               </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+              <label class="block text-sm font-bold text-ink mb-2">API Key</label>
               <el-input
                 v-model="settings.transcriptionOpenaiApiKey"
                 type="password"
                 show-password
-                placeholder="输入 OpenAI API Key"
+                placeholder="OpenAI API Key"
+                class="input-framist-wrapper"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Base URL</label>
+              <label class="block text-sm font-bold text-ink mb-2">Base URL</label>
               <input
                 v-model="settings.transcriptionOpenaiBaseUrl"
                 type="url"
-                class="w-full p-2 border border-gray-300 rounded-md"
+                class="input-framist"
                 placeholder="https://api.openai.com/v1"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                使用官方API或兼容的第三方服务地址
-              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">模型名称（可选）</label>
+              <label class="block text-sm font-bold text-ink mb-2">{{ t('modelName') }}</label>
               <input
                 v-model="settings.transcriptionOpenaiModel"
                 type="text"
-                class="w-full p-2 border border-gray-300 rounded-md"
+                class="input-framist"
                 placeholder="whisper-1"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                留空使用默认模型 whisper-1
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 媒体凭证 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center mr-3 text-lg">🔑</span>
-          媒体凭证
+      <!-- Credentials -->
+      <section class="card-focus bg-white p-8 relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-mint opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <h2 class="text-2xl font-display font-bold text-ink mb-8 flex items-center">
+          <span class="w-10 h-10 bg-mint bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
+            <span class="text-xl">🔑</span>
+          </span>
+          {{ t('mediaCredentials') }}
         </h2>
         
-        <div class="space-y-6">
+        <div class="space-y-8 pl-14">
+          <!-- Bilibili -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">B站登录SessData</label>
+            <label class="block text-sm font-bold text-ink mb-2">Bilibili SessData</label>
             <el-input
               v-model="settings.bilibiliSessData"
               type="password"
               show-password
-              placeholder="输入B站登录SessData"
-            />
-            <p class="mt-2 text-sm text-gray-500">
-              用于登录B站获取高清视频和字幕
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- TTS配音设置 -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-pink-100 text-pink-600 rounded-lg flex items-center justify-center mr-3 text-lg">🔊</span>
-          TTS 配音设置
-        </h2>
-        
-        <div class="space-y-6">
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 class="text-sm font-medium text-blue-800 mb-2">TTS 配音设置</h4>
-            <p class="text-sm text-blue-700">
-              配置 Alibaba Cloud DashScope 凭证以启用 TTS 配音生成功能。
-            </p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">DashScope API Key</label>
-            <input
-              v-model="settings.dashscopeApiKey"
-              type="password"
-              class="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="输入您的 DashScope API Key"
+              placeholder="SessData for high-quality downloads"
+              class="input-framist-wrapper"
             />
           </div>
-        </div>
-      </section>
 
-      <!-- OSS Service -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
-          <span class="w-8 h-8 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center mr-3 text-lg">☁️</span>
-          OSS Service
-        </h2>
-        
-        <div class="space-y-6">
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 class="text-sm font-medium text-blue-800 mb-2">Aliyun OSS 配置说明</h4>
-            <p class="text-sm text-blue-700">
-              配置 Aliyun OSS 凭证以启用音频克隆功能。上传的参考音频将存储在您的 OSS Bucket 中。
-            </p>
-          </div>
+          <!-- Aliyun OSS -->
+           <div class="pt-6 border-t border-ink border-opacity-5">
+            <h3 class="text-lg font-bold text-ink mb-2">Aliyun OSS</h3>
+            <p class="text-sm text-mist mb-6">{{ t('ossDescription') }}</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-bold text-ink mb-2">Access Key ID</label>
+                <input
+                  v-model="settings.ossAccessKeyId"
+                  type="text"
+                  class="input-framist"
+                  placeholder="LTAI..."
+                />
+              </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Access Key ID</label>
-              <input
-                v-model="settings.ossAccessKeyId"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="输入您的 Aliyun Access Key ID"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-bold text-ink mb-2">Access Key Secret</label>
+                <input
+                  v-model="settings.ossAccessKeySecret"
+                  type="password"
+                  class="input-framist"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Access Key Secret</label>
-              <input
-                v-model="settings.ossAccessKeySecret"
-                type="password"
-                class="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="输入您的 Aliyun Access Key Secret"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-bold text-ink mb-2">Endpoint</label>
+                <input
+                  v-model="settings.ossEndpoint"
+                  type="text"
+                  class="input-framist"
+                  placeholder="oss-cn-beijing.aliyuncs.com"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Endpoint</label>
-              <input
-                v-model="settings.ossEndpoint"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="oss-cn-beijing.aliyuncs.com"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Bucket 名称</label>
-              <input
-                v-model="settings.ossBucket"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="vidgo-test"
-              />
+               <div>
+                <label class="block text-sm font-bold text-ink mb-2">{{ t('bucketName') }}</label>
+                <input
+                  v-model="settings.ossBucket"
+                  type="text"
+                  class="input-framist"
+                  placeholder="my-bucket"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -536,6 +540,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 import {
   loadConfig,
   saveConfig,
@@ -787,7 +794,7 @@ const settings = reactive<FrontendSettings>({
   transcriptionOpenaiBaseUrl: 'https://api.openai.com/v1',
   transcriptionOpenaiModel: '',
   remoteVidGoHost: '',
-  remoteVidGoPort: '9000',
+  remoteVidGoPort: '8000',
   remoteVidGoUseSsl: false,
   dashscopeApiKey: '',
   ossAccessKeyId: '',

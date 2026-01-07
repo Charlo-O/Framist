@@ -1,5 +1,4 @@
 // 应用程序入口点，中文注释帮助理解配置
-import '@/assets/main.css'
 
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -53,4 +52,4 @@ app.use(router)
 
 // 挂载应用并暴露到全局，方便调试和外部访问
 const vueApp = app.mount('#app')
-;(window as any).vueApp = vueApp
+  ; (window as any).vueApp = vueApp

@@ -469,7 +469,7 @@ onMounted(() => {
 
 <template>
   <!-- 浅色主题背景容器 -->
-  <div class="min-h-screen bg-[#f8f9ff]">
+  <div class="min-h-screen bg-paper">
     <!-- 导航栏组件，含用户信息与设置按钮 -->
     <NavBar
       v-if="!isVideoFullscreen"
@@ -490,7 +490,7 @@ onMounted(() => {
         <div :class="isVideoFullscreen ? 'col-span-1 space-y-4' : 'lg:col-span-2 space-y-4'">
           <!-- 视频播放器卡片容器 -->
           <div
-            class="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm"
+            class="bg-white rounded-3xl p-4 border border-ink/5 shadow-sm"
           >
             <div class="aspect-video w-full rounded-xl overflow-hidden">
               <VideoPlayer
@@ -509,7 +509,7 @@ onMounted(() => {
 
           <!-- 视频信息卡片，带选项卡 -->
           <div
-            class="bg-white rounded-3xl border border-slate-200 shadow-sm"
+            class="bg-white rounded-3xl border border-ink/5 shadow-sm"
             :class="{ 'fullscreen-hidden': isVideoFullscreen }"
           >
             <Suspense>
@@ -534,7 +534,7 @@ onMounted(() => {
         <div v-show="!isVideoFullscreen" class="space-y-4" :class="{ 'fullscreen-hidden': isVideoFullscreen }">
           <!-- 选项卡面板卡片 -->
           <div
-            class="bg-white rounded-3xl border border-slate-200 shadow-sm"
+            class="bg-white rounded-3xl border border-ink/5 shadow-sm"
           >
             <TabbedPanel
               v-if="videoData.id !== -1"
@@ -551,7 +551,7 @@ onMounted(() => {
 
           <!-- 播放列表卡片 -->
           <div
-            class="bg-white rounded-3xl border border-slate-200 shadow-sm"
+            class="bg-white rounded-3xl border border-ink/5 shadow-sm"
           >
             <PlayList
               ref="playlistRef"

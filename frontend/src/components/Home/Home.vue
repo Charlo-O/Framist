@@ -1,7 +1,7 @@
 <!-- 主要布局组件，复杂业务逻辑 -->
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { defineExpose, computed } from 'vue'
+import { computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Microphone, Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -216,7 +216,7 @@ async function deleteVideo(video: Video) {
   const remove = (arr: Video[]) => arr.filter((v) => v.id !== video.id)
 
   Object.keys(videoData.value).forEach(
-    (key) => (videoData.value[key] = remove(videoData.value[key])),
+    (key) => (videoData.value[key] = remove(videoData.value[key] ?? [])),
   )
 }
 // 2.4 批量操作
@@ -309,7 +309,7 @@ async function batchConcat() {
   // Get selected videos with their details
   const selectedVideos: Video[] = selectedIds.value
     .map((id) => videoIndex.value[id])
-    .filter(Boolean)
+    .filter((v): v is Video => !!v)
     .sort((a, b) => {
       // Sort by the order they appear in selectedIds
       return selectedIds.value.indexOf(a.id) - selectedIds.value.indexOf(b.id)
@@ -433,9 +433,8 @@ const videoIndex = computed<Record<number, Video>>(() => {
   return map
 })
 
-/** 当前勾选的视频对象数组 */
 const selectedVideos = computed<Video[]>(() =>
-  selectedIds.value.map((id) => videoIndex.value[id]).filter(Boolean),
+  selectedIds.value.map((id) => videoIndex.value[id]).filter((v): v is Video => !!v),
 )
 
 // 过滤后的分类（用于隐藏分类功能）
@@ -836,7 +835,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden">
+  <div class="flex h-screen overflow-hidden bg-paper">
     <!-- Sidebar on the left -->
     <Sidebar
       :categories="isAuthenticated ? filteredCategories : []"
@@ -854,45 +853,52 @@ onMounted(() => {
     <SearchModal v-model:visible="showSearchModal" @close="showSearchModal = false" />
     <!-- 右侧可Y轴滚动内容区 -->
     <main
-      class="flex-1 h-full p-6 overflow-y-auto bg-[#f8f9ff] scrollbar-premium"
+      class="flex-1 h-full p-8 overflow-y-auto bg-paper scrollbar-premium"
     >
       <template v-if="currentMenuIdx === 0">
-        <div class="p-6">
-          <h1 class="text-3xl font-black tracking-tight mb-1 text-slate-800">
-            <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">{{ t('videoManagementSystem') }}</span>
-          </h1>
-          <p class="text-slate-500 mb-6">AI 驱动的智能视频字幕处理平台</p>
+        <div class="max-w-7xl mx-auto">
+          <!-- Header -->
+          <div class="mb-8">
+            <h1 class="text-4xl font-display font-bold tracking-tight mb-2 text-ink">
+              {{ t('videoManagementSystem') }}
+            </h1>
+            <p class="text-mist text-lg font-medium">{{ t('framistSlogan') }}</p>
+          </div>
+
           <StreamMediaCard @upload-complete="fetchVideoData" />
+          <!-- File upload is handled by StreamMediaCard component -->
+
+          <div class="mt-12">
+            <TasksView @download-completed="fetchVideoData" />
+          </div>
+
           <!-- 功能卡片组 - 只保留录音转写并居中 -->
-          <div class="flex justify-center mt-8 space-x-8">
+          <div class="flex justify-center mt-12 space-x-8">
             <!-- 录音转写卡片 -->
             <div
-              class="card-premium bg-white p-8 cursor-pointer max-w-xs text-center hover:shadow-glow"
+              class="card-focus bg-white p-8 cursor-pointer max-w-sm w-full text-center group"
             >
               <div
-                class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-pink-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-200"
+                class="w-16 h-16 mx-auto rounded-2xl bg-paper flex items-center justify-center mb-6 group-hover:bg-mint group-hover:bg-opacity-20 transition-colors"
               >
-                <el-icon size="32" class="text-white">
+                <el-icon size="32" class="text-ink group-hover:text-mint transition-colors">
                   <Microphone />
                 </el-icon>
               </div>
-              <h3 class="text-xl font-bold text-slate-800 mb-2">
+              <h3 class="text-xl font-bold font-display text-ink mb-3 group-hover:text-mint transition-colors">
                 {{ t('liveRecordTranscription') }}
               </h3>
-              <p class="text-slate-500 text-sm leading-relaxed">
+              <p class="text-mist text-sm leading-relaxed">
                 {{ t('liveRecordTranscriptionDesc') }}
               </p>
             </div>
           </div>
-          <!-- File upload is handled by StreamMediaCard component -->
-
-          <TasksView @download-completed="fetchVideoData" />
         </div>
       </template>
 
       <!-- 📌 媒体库 -->
       <template v-if="currentMenuIdx === 1">
-        <h2 class="text-2xl font-black tracking-tight mb-4 text-slate-800">{{ t('allMedia') }}</h2>
+        <h2 class="text-3xl font-display font-bold tracking-tight mb-6 text-ink">{{ t('allMedia') }}</h2>
 
         <!-- 批量操作栏（可选） -->
         <BatchToolbar
@@ -906,10 +912,13 @@ onMounted(() => {
         />
 
         <!-- 逐分类渲染 -->
-        <section v-for="cat in filteredCategories" :key="cat.id" class="mb-10">
-          <h3 class="text-lg font-bold mb-3 text-slate-700">
-            {{ cat.name || t('uncategorized') }}
-          </h3>
+        <section v-for="cat in filteredCategories" :key="cat.id" class="mb-12">
+          <div class="flex items-center mb-4">
+             <div class="w-1 h-6 bg-mint mr-3 rounded-full"></div>
+             <h3 class="text-xl font-bold text-ink">
+               {{ cat.name || t('uncategorized') }}
+             </h3>
+          </div>
 
           <MediaItemCards
             :category="cat"
@@ -925,31 +934,33 @@ onMounted(() => {
         </section>
       </template>
 
-      <!-- 📌 History 页面 - 只有认证用户才能访问 -->
-      <template v-if="currentMenuIdx === 2 && isAuthenticated">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-black tracking-tight text-slate-800">
-            {{ t('recentAccess') }} ({{ recentVideos.length }}{{ t('videosCount') }})
+      <!-- 📌 History 页面 - 无需登录即可访问 -->
+      <template v-if="currentMenuIdx === 2">
+        <div class="flex items-center justify-between mb-8">
+          <h2 class="text-3xl font-display font-bold tracking-tight text-ink">
+            {{ t('recentAccess') }} <span class="text-mist text-lg font-normal ml-2">({{ recentVideos.length }}{{ t('videosCount') }})</span>
           </h2>
-          <el-button
+          <button
             v-if="!isLoadingHistory"
             @click="fetchRecentVideos"
-            class="btn-gradient"
+            class="btn-breathing text-sm px-4 py-2"
           >
             {{ t('refresh') }}
-          </el-button>
+          </button>
         </div>
 
         <!-- 加载状态 -->
-        <div v-if="isLoadingHistory" class="flex items-center justify-center py-12">
-          <div class="loader-premium"></div>
-          <span class="ml-4 text-slate-500">{{ t('loadingRecentVideos') }}</span>
+        <div v-if="isLoadingHistory" class="flex flex-col items-center justify-center py-20">
+          <div class="w-64">
+             <div class="loader-gist"><div class="loader-gist-bar"></div></div>
+          </div>
+          <span class="mt-6 text-mist font-medium">{{ t('loadingRecentVideos') }}</span>
         </div>
 
         <!-- 错误状态 -->
         <div v-else-if="historyError" class="flex items-center justify-center py-12">
           <div class="text-center">
-            <p class="text-red-400 mb-4">{{ historyError }}</p>
+            <p class="text-coral mb-4">{{ historyError }}</p>
             <el-button @click="fetchRecentVideos" type="primary" size="small">重试</el-button>
           </div>
         </div>
@@ -970,7 +981,7 @@ onMounted(() => {
           <!-- 视频网格 -->
           <div
             v-if="paginatedRecentVideos.length > 0"
-            class="grid gap-5 grid-cols-[repeat(auto-fit,minmax(240px,300px))]"
+            class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]"
           >
             <VideoCard
               v-for="video in paginatedRecentVideos"
@@ -993,15 +1004,15 @@ onMounted(() => {
           </div>
 
           <!-- 空状态 -->
-          <div v-else class="flex items-center justify-center py-12">
-            <div class="text-center card-premium p-12">
-              <p class="text-slate-600 text-lg mb-2">{{ t('noRecentVideos') }}</p>
-              <p class="text-slate-400 text-sm">{{ t('noRecentVideosDesc') }}</p>
+          <div v-else class="flex items-center justify-center py-20">
+            <div class="text-center bg-white p-12 rounded-3xl shadow-sm border border-ink border-opacity-5">
+              <p class="text-ink font-bold text-xl mb-3">{{ t('noRecentVideos') }}</p>
+              <p class="text-mist">{{ t('noRecentVideosDesc') }}</p>
             </div>
           </div>
 
           <!-- 分页组件 -->
-          <div v-if="totalHistoryPages > 1" class="flex justify-center mt-6">
+          <div v-if="totalHistoryPages > 1" class="flex justify-center mt-12">
             <el-pagination
               v-model:current-page="currentPage"
               :total="recentVideos.length"
@@ -1014,15 +1025,7 @@ onMounted(() => {
         </template>
       </template>
 
-      <!-- 📌 History 页面 - 未认证用户显示提示 -->
-      <template v-if="currentMenuIdx === 2 && !isAuthenticated">
-        <div class="flex items-center justify-center py-12">
-          <div class="text-center card-premium p-12">
-            <p class="text-slate-600 text-lg mb-2">{{ t('pleaseLogin') }}</p>
-            <p class="text-slate-400 text-sm">{{ t('pleaseLoginDesc') }}</p>
-          </div>
-        </div>
-      </template>
+
 
       <!-- 📌 设置页面 -->
       <template v-if="currentMenuIdx === 3">
@@ -1031,7 +1034,10 @@ onMounted(() => {
 
       <!-- 📌 单一分类 -->
       <template v-else-if="currentMenuIdx === -1 && currentCategory">
-        <h2 class="text-2xl font-black tracking-tight mb-4 text-slate-800">{{ currentCategory.name }}</h2>
+        <div class="flex items-center mb-6">
+           <div class="w-1 h-8 bg-mint mr-4 rounded-full"></div>
+           <h2 class="text-3xl font-display font-bold tracking-tight text-ink">{{ currentCategory.name }}</h2>
+        </div>
 
         <BatchToolbar
           :batch-mode="isBatchMode"
@@ -1057,7 +1063,7 @@ onMounted(() => {
         />
 
         <!-- 分页组件 -->
-        <div v-if="totalCategoryPages > 1" class="flex justify-center mt-6">
+        <div v-if="totalCategoryPages > 1" class="flex justify-center mt-12">
           <el-pagination
             v-model:current-page="currentPage"
             :total="currentCategory.items.length"
@@ -1071,11 +1077,11 @@ onMounted(() => {
       <!-- 📌 ③ Collection 详情 -->
       <template v-else-if="currentMenuIdx === 10 && currentCollection">
         <!-- 返回上一级 -->
-        <el-button type="text" @click="returnFromCollection">
-          ← {{ t('returnTo') }} {{ currentCategory?.name || t('library') }}
-        </el-button>
+        <button @click="returnFromCollection" class="mb-6 flex items-center text-mist hover:text-ink transition-colors font-medium">
+          <span class="mr-2">←</span> {{ t('returnTo') }} {{ currentCategory?.name || t('library') }}
+        </button>
 
-        <h2 class="text-2xl font-black tracking-tight mb-4 text-slate-800">{{ currentCollection.name }}</h2>
+        <h2 class="text-3xl font-display font-bold tracking-tight mb-6 text-ink">{{ currentCollection.name }}</h2>
 
         <!-- 批量操作栏（可选） -->
         <BatchToolbar
@@ -1089,7 +1095,7 @@ onMounted(() => {
         />
 
         <!-- 直接渲染 VideoCard 列表 -->
-        <div class="grid gap-5 grid-cols-[repeat(auto-fit,minmax(240px,300px))]">
+        <div class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           <VideoCard
             v-for="video in paginatedCollectionVideos"
             :key="video.id"
@@ -1111,7 +1117,7 @@ onMounted(() => {
         </div>
 
         <!-- 分页组件 -->
-        <div v-if="totalCollectionPages > 1" class="flex justify-center mt-6">
+        <div v-if="totalCollectionPages > 1" class="flex justify-center mt-12">
           <el-pagination
             v-model:current-page="currentPage"
             :total="currentCollectionVideos.length"
@@ -1157,46 +1163,49 @@ onMounted(() => {
       @categories-updated="onCategoriesUpdated"
     />
 
-    <!-- Login Dialog -->
+    <!-- Login Dialog with Framist Style -->
     <div
       v-if="showLoginDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-paper bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50"
       @click.self="showLoginDialog = false"
     >
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">{{ t('login') }}</h2>
-        <form @submit.prevent="handleLogin" class="space-y-4">
+      <div class="bg-white rounded-3xl shadow-float w-full max-w-md p-10 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-mint to-primary-light"></div>
+        <h2 class="text-3xl font-display font-bold text-ink mb-2">{{ t('login') }}</h2>
+        <p class="text-mist mb-8">Login to your Framist account</p>
+        
+        <form @submit.prevent="handleLogin" class="space-y-6">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('username') }}</label>
+            <label class="block text-sm font-bold text-ink mb-2 ml-1">{{ t('username') }}</label>
             <input
               v-model="loginForm.username"
               type="text"
-              class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input-framist"
               :placeholder="t('pleaseEnterUsername')"
               required
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('password') }}</label>
+            <label class="block text-sm font-bold text-ink mb-2 ml-1">{{ t('password') }}</label>
             <input
               v-model="loginForm.password"
               type="password"
-              class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input-framist"
               :placeholder="t('pleaseEnterPassword')"
               required
             />
           </div>
-          <div class="flex space-x-3 pt-4">
+          <div class="flex space-x-4 pt-4">
             <button
               type="button"
               @click="showLoginDialog = false"
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              class="flex-1 btn-ghost"
             >
               {{ t('cancel') }}
             </button>
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              class="flex-1 btn-breathing shadow-lg shadow-mint/30"
             >
               {{ t('login') }}
             </button>
@@ -1205,59 +1214,61 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Register Dialog -->
+    <!-- Register Dialog with Framist Style -->
     <div
       v-if="showRegisterDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-paper bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50"
       @click.self="showRegisterDialog = false"
     >
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-2">{{ t('createRootUser') }}</h2>
-        <p class="text-sm text-gray-600 mb-4">{{ t('noRootUserPrompt') }}</p>
-        <form @submit.prevent="handleRegister" class="space-y-4">
+      <div class="bg-white rounded-3xl shadow-float w-full max-w-md p-10 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-mint to-primary-light"></div>
+        
+        <h2 class="text-2xl font-display font-bold text-ink mb-2">{{ t('createRootUser') }}</h2>
+        <p class="text-sm text-mist mb-8">{{ t('noRootUserPrompt') }}</p>
+        <form @submit.prevent="handleRegister" class="space-y-5">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('username') }}</label>
+            <label class="block text-sm font-bold text-ink mb-1 ml-1">{{ t('username') }}</label>
             <input
               v-model="registerForm.username"
               type="text"
-              class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input-framist"
               :placeholder="t('pleaseEnterUsername')"
               required
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{
+            <label class="block text-sm font-bold text-ink mb-1 ml-1">{{
               t('emailOptional')
             }}</label>
             <input
               v-model="registerForm.email"
               type="email"
-              class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input-framist"
               :placeholder="t('email')"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('password') }}</label>
+            <label class="block text-sm font-bold text-ink mb-1 ml-1">{{ t('password') }}</label>
             <input
               v-model="registerForm.password"
               type="password"
-              class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input-framist"
               :placeholder="t('passwordHint')"
               required
             />
-            <p class="text-xs text-gray-500 mt-1">{{ t('passwordRequirement') }}</p>
+            <p class="text-xs text-mist mt-2 ml-1">{{ t('passwordRequirement') }}</p>
           </div>
-          <div class="flex space-x-3 pt-4">
+          <div class="flex space-x-4 pt-4">
             <button
               type="button"
               @click="showRegisterDialog = false"
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              class="flex-1 btn-ghost"
             >
               {{ t('cancel') }}
             </button>
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              class="flex-1 btn-breathing"
             >
               {{ t('create') }}
             </button>
@@ -1275,72 +1286,78 @@ onMounted(() => {
   width: 10px; /* 圆点直径 */
   height: 10px;
   border-radius: 50%;
-  background-color: var(--el-color-info); /* 未完成：灰蓝色 */
+  background-color: #8E8E8E; /* Mist */
 }
 
-/* 分页样式 */
+.status-dot.done {
+  background-color: #98FF98; /* Mint */
+}
+
+/* 分页样式 - Framist Style */
 :deep(.pagination-custom .el-pagination) {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 :deep(.pagination-custom .el-pager li) {
-  min-width: 36px;
-  height: 36px;
+  min-width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #6b7280;
-  background: transparent;
-  border: none;
+  color: #8E8E8E; /* Mist */
+  background: white;
+  border: 1px solid rgba(45, 45, 45, 0.05);
 }
 
 :deep(.pagination-custom .el-pager li:hover) {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: white;
+  color: #2D2D2D; /* Ink */
+  border-color: #98FF98; /* Mint */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 :deep(.pagination-custom .el-pager li.is-active) {
-  background-color: #10b981;
-  color: white;
+  background-color: #98FF98; /* Mint */
+  color: #2D2D2D; /* Ink */
+  border-color: #98FF98;
+  font-weight: bold;
 }
 
 :deep(.pagination-custom .btn-prev),
 :deep(.pagination-custom .btn-next) {
-  min-width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: transparent;
-  border: none;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid rgba(45, 45, 45, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #6b7280;
+  color: #8E8E8E;
 }
 
 :deep(.pagination-custom .btn-prev:hover),
 :deep(.pagination-custom .btn-next:hover) {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: white;
+  color: #2D2D2D;
+  border-color: #98FF98;
 }
 
 :deep(.pagination-custom .btn-prev:disabled),
 :deep(.pagination-custom .btn-next:disabled) {
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-/* 完成状态 */
-.status-dot.done {
-  background-color: var(--el-color-success); /* 完成：绿色 */
+  opacity: 0.4;
+  background: #F7F7F5;
 }
 </style>

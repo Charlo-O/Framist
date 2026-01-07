@@ -80,13 +80,22 @@ class CollectionActionView(View):
         
         collection_list = []
         for collection in collections:
-            video_count = collection.videos.count()
+            videos = collection.videos.order_by('-last_modified')
+            video_count = videos.count()
+            
+            # Use collection's own thumbnail, or fall back to newest video's thumbnail
+            thumbnail_url = collection.thumbnail_url
+            if not thumbnail_url and video_count > 0:
+                latest_video = videos.first()
+                if latest_video and latest_video.thumbnail_url:
+                    thumbnail_url = f"thumbnail/{latest_video.thumbnail_url}"
+            
             collection_list.append({
                 "id": collection.id,
                 "name": collection.name,
                 "category_id": collection.category.id if collection.category else 0,
                 "category_name": collection.category.name if collection.category else "No Category",
-                "thumbnail_url": collection.thumbnail_url,
+                "thumbnail_url": thumbnail_url,
                 "created_time": collection.created_time.isoformat() if collection.created_time else None,
                 "last_modified": collection.last_modified.isoformat() if collection.last_modified else None,
                 "video_count": video_count

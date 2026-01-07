@@ -1,18 +1,29 @@
 <script setup lang="ts">
 import type { Collection } from '@/types/media'
-import { More, EditPen, Folder } from '@element-plus/icons-vue'
-import { SquarePen } from 'lucide-vue-next'
+import { More, EditPen, Folder, Delete } from '@element-plus/icons-vue'
+import { SquarePen, FolderOpen } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CollectionMoveDialog from '@/components/dialogs/CollectionMoveDialog.vue'
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
 import { getCSRFToken } from '@/composables/GetCSRFToken'
 
 const props = defineProps<{ col: Collection; view: 'grid' | 'list' }>()
-const content = `${props.col.videos.length}个视频`
+const videoCount = props.col.videos.length
 import { BACKEND } from '@/composables/ConfigAPI'
-const thumbnailUrl = `${BACKEND}/media/${encodeURIComponent(props.col.thumbnail)}`
+
 const FALLBACK_IMG =
   'https://pic.chaopx.com/chao_water_pic/23/03/03/e78a5cf45f9ebc92411a8f9531975dec.jpg'
+
+// Get up to 4 video thumbnails for grid display
+const thumbnailGrid = computed(() => {
+  const videos = props.col.videos || []
+  return videos.slice(0, 4).map(v => {
+    if (v.thumbnail) {
+      return `${BACKEND}/media/${encodeURIComponent(v.thumbnail)}`
+    }
+    return FALLBACK_IMG
+  })
+})
 
 // Inline editing state
 const isEditing = ref(false)
@@ -164,81 +175,92 @@ const onCollectionMoved = () => {
 
 <template>
   <div
-    class="collection-card relative bg-gray-500/30 backdrop-blur-md rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:transform hover:scale-105 p-0 overflow-hidden border border-gray-400/30 group"
+    class="collection-card relative rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer"
+    @click="emit('open-collection', col.id)"
   >
-    <!-- 顶部合集标签 -->
+    <!-- Thumbnail Grid (2x2) -->
+    <div class="h-48 bg-gray-200">
+      <div v-if="thumbnailGrid.length >= 4" class="grid grid-cols-2 grid-rows-2 h-full gap-0.5">
+        <img v-for="(thumb, idx) in thumbnailGrid" :key="idx" :src="thumb" class="w-full h-full object-cover" />
+      </div>
+      <div v-else-if="thumbnailGrid.length > 0" class="h-full">
+        <img :src="thumbnailGrid[0]" class="w-full h-full object-cover" />
+      </div>
+      <div v-else class="h-full flex items-center justify-center bg-gray-300">
+        <FolderOpen :size="48" class="text-gray-400" />
+      </div>
+    </div>
+    
+    <!-- Collection Badge (top left) -->
     <div
-      class="absolute top-3 left-3 flex items-center space-x-1 bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full z-20"
+      class="absolute top-2 left-2 flex items-center space-x-1 bg-blue-500/90 text-white text-xs px-2 py-0.5 rounded z-20"
     >
       <el-icon class="w-3 h-3"><Folder /></el-icon>
-      <span> 合集 </span>
+      <span>合集</span>
     </div>
-
-    <div class="relative h-48 bg-gray-100">
-      <img :src="thumbnailUrl || FALLBACK_IMG" alt="封面" class="w-full h-full object-cover" />
-      <!-- 视频数悬浮右下 -->
-      <div
-        class="absolute bottom-3 right-3 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5"
-      >
-        {{ content }}
-      </div>
-    </div>
-
-    <!-- 文案区 -->
-    <div class="p-4 flex flex-col flex-1">
-      <div class="flex items-center justify-between">
-        <div v-if="!isEditing" class="flex items-center gap-2 flex-1">
-          <h3
-            class="text-xl font-semibold text-white truncate cursor-pointer hover:text-blue-300 transition-colors flex-1"
-            @click.stop="emit('open-collection', col.id)"
-          >
-            {{ col.name }}
-          </h3>
-          <div class="opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <el-dropdown trigger="click">
-              <button class="text-white hover:text-blue-300 transition-colors p-1">
-                <el-icon class="text-xl"><More /></el-icon>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="openCollectionMoveDialog">
-                    <el-icon class="mr-2"><EditPen /></el-icon> 移动至分类
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="emit('edit-thumbnail', col)">
-                    <el-icon class="mr-2"><EditPen /></el-icon> 更换预览图
-                  </el-dropdown-item>
-                  <!-- 无视频时可删；否则提示"请先移动视频" -->
-                  <el-dropdown-item @click="handleDelete" divided>
-                    <el-icon class="mr-2"><EditPen /></el-icon> 删除合集
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </div>
-        <div v-else class="flex items-center gap-2 flex-1">
-          <input
-            ref="inputRef"
-            v-model="editingName"
-            class="flex-1 text-lg font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-white/50"
-            @keydown="handleKeydown"
-            @blur="saveEdit"
-          />
-        </div>
-      </div>
-
-      <div class="flex justify-between items-center pt-3 border-t border-white/20">
-        <span class="text-xs text-white/60">{{ col.last_modified }}</span>
-      </div>
-    </div>
-
-    <!-- Edit icon positioned at bottom right -->
+    
+    <!-- Video Count Badge (top right) -->
     <div
-      class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200"
+      class="absolute top-2 right-2 bg-black/60 text-white text-xs font-medium px-2 py-1 rounded z-20"
     >
-      <button class="text-white hover:text-blue-300 transition-colors" @click.stop="startEditing">
-        <SquarePen :size="20" class="text-white" />
-      </button>
+      {{ videoCount }}个视频
+    </div>
+    
+    <!-- Hover Overlay with Open Icon -->
+    <div
+      class="absolute left-0 right-0 top-0 h-48 bg-black/30 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300"
+    >
+      <div class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+        <FolderOpen :size="28" class="text-gray-800" />
+      </div>
+    </div>
+    
+    <!-- Bottom Gradient Overlay with Title -->
+    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
+      <div v-if="!isEditing" class="flex items-center gap-2">
+        <h3 class="font-semibold text-white truncate flex-1 text-base drop-shadow-lg">
+          {{ col.name }}
+        </h3>
+        
+        <!-- Buttons (stop propagation to prevent opening collection) -->
+        <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1" @click.stop>
+          <button class="text-white hover:text-blue-200 transition-colors p-1" @click.stop="startEditing">
+            <SquarePen :size="16" class="drop-shadow" />
+          </button>
+          <el-dropdown trigger="click">
+            <button class="text-white hover:text-blue-200 transition-colors p-1">
+              <el-icon class="text-lg"><More /></el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="openCollectionMoveDialog">
+                  <el-icon class="mr-2"><EditPen /></el-icon> 移动至分类
+                </el-dropdown-item>
+                <el-dropdown-item @click="emit('edit-thumbnail', col)">
+                  <el-icon class="mr-2"><EditPen /></el-icon> 更换预览图
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleDelete" divided class="text-red-500">
+                  <el-icon class="mr-2"><Delete /></el-icon> 删除合集
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+      
+      <!-- Editing Mode -->
+      <div v-else class="flex items-center gap-2" @click.stop>
+        <input
+          ref="inputRef"
+          v-model="editingName"
+          class="flex-1 font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-white/50 text-sm"
+          @keydown="handleKeydown"
+          @blur="saveEdit"
+        />
+      </div>
+      
+      <!-- Last Modified -->
+      <div class="text-xs text-white/70 mt-1">{{ col.last_modified }}</div>
     </div>
 
     <!-- Collection Move Dialog -->
@@ -250,3 +272,4 @@ const onCollectionMoved = () => {
     />
   </div>
 </template>
+

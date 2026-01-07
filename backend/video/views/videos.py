@@ -286,7 +286,7 @@ class VideoDataView(JsonView):
         return {
             "id": v.id,
             "name": v.name,
-            "thumbnail": f"thumbnail/{v.thumbnail_url}",
+            "thumbnail": f"thumbnail/{v.thumbnail_url}" if v.thumbnail_url else "",
             "url": v.url,
             "length": v.video_length,
             "last_modified": calc_diff_time(v.last_modified or timezone.now()),
@@ -296,7 +296,7 @@ class VideoDataView(JsonView):
         return {
             "id": col.id,
             "name": col.name,
-            "thumbnail": f"thumbnail/{col.thumbnail_url}",
+            "thumbnail": f"thumbnail/{col.thumbnail_url}" if col.thumbnail_url else "",
             "videos": [self.video_json(v) for v in col.videos.all()],
             "last_modified": calc_diff_time(col.last_modified or timezone.now()),
         }
@@ -379,7 +379,7 @@ class LastVideoDataView(JsonView):
         return {
             "id": v.id,
             "name": v.name,
-            "thumbnail": f"thumbnail/{v.thumbnail_url}",
+            "thumbnail": f"thumbnail/{v.thumbnail_url}" if v.thumbnail_url else "",
             "url": v.url,
             "length": v.video_length,
             "last_modified": calc_diff_time(v.last_modified if v.last_modified else timezone.now()),
@@ -447,7 +447,7 @@ class VideoInfoView(JsonView):
         except Video.DoesNotExist:
             return self.json_err('Video not found', status=404)
 
-@method_decorator(csrf_protect, name="dispatch")
+@method_decorator(csrf_exempt, name="dispatch")
 class VideoActionView(View):
     def dispatch(self, request, *args, **kwargs):
         self.action = kwargs.pop('action', None)
@@ -458,7 +458,7 @@ class VideoActionView(View):
         if self.action == 'upload':
             return self.upload(request, video_id)
         elif self.action == 'delete':
-            return self.delete(request, video_id)
+            return self._delete_video(request, video_id)
         elif self.action == 'rename':
             return self.rename(request, video_id)
         elif self.action == 'rename_description':
@@ -487,8 +487,16 @@ class VideoActionView(View):
             return self.extract_audio(request, video_id)
         elif self.action == 'generate_waveform_peaks':
             return self.generate_waveform_peaks(request, video_id)
+        elif self.action == 'save_notes':
+            return self.save_notes(request, video_id)
         # 其它动作不允许 POST
         return HttpResponseNotAllowed(['POST'])
+
+    def delete(self, request, video_id):
+        """Handle HTTP DELETE method for delete action"""
+        if self.action == 'delete':
+            return self._delete_video(request, video_id)
+        return HttpResponseNotAllowed(['DELETE'])
 
     def get(self, request, video_id):
         if self.action == 'query':
@@ -755,8 +763,7 @@ class VideoActionView(View):
         except Video.DoesNotExist:
             return self.json_err('Video not found', status=404)
         return self.json_ok({'title': v.name, 'description': v.description})
-    @requires_delete_permission
-    def delete(self,request,video_id):
+    def _delete_video(self,request,video_id):
         try:
             video = Video.objects.get(pk=video_id)
         except ObjectDoesNotExist:
@@ -785,6 +792,42 @@ class VideoActionView(View):
             },
             status=200
         )
+    
+    def save_notes(self, request, video_id):
+        """保存笔记到视频"""
+        try:
+            video = Video.objects.get(pk=video_id)
+        except Video.DoesNotExist:
+            return self.json_err('Video not found', status=404)
+        
+        try:
+            data = json.loads(request.body)
+            notes = data.get('notes', '')
+            
+            # 验证长度
+            if len(notes) > 8000:
+                return self.json_err('Notes exceed maximum length of 8000 characters', status=400)
+            
+            video.notes = notes
+            video.save(update_fields=['notes'])
+            
+            return self.json_ok({'success': True, 'message': 'Notes saved successfully'})
+        except json.JSONDecodeError:
+            return self.json_err('Invalid JSON', status=400)
+        except Exception as e:
+            return self.json_err(f'Failed to save notes: {str(e)}', status=500)
+    
+    def load_notes(self, request, video_id):
+        """加载视频的笔记"""
+        try:
+            video = Video.objects.get(pk=video_id)
+        except Video.DoesNotExist:
+            return self.json_err('Video not found', status=404)
+        
+        return self.json_ok({
+            'success': True,
+            'notes': video.notes or ''
+        })
     
     def rename_description(self,request,video_id):
         try:
@@ -1210,14 +1253,21 @@ class VideoActionView(View):
                 thumbnail_path
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, stderr=subprocess.PIPE)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0 and os.path.exists(thumbnail_path):
+                print(f"[Auto-thumbnail] SUCCESS: Generated {thumbnail_filename} for {video_path}")
                 return thumbnail_filename
             else:
+                print(f"[Auto-thumbnail] FAILED: FFmpeg returned {result.returncode}")
+                print(f"[Auto-thumbnail] Command: {' '.join(cmd)}")
+                print(f"[Auto-thumbnail] stderr: {result.stderr}")
                 return ''
+        except FileNotFoundError:
+            print(f"[Auto-thumbnail] ERROR: FFmpeg not found in PATH. Please install FFmpeg.")
+            return ''
         except Exception as e:
-            print(f"[Auto-thumbnail] {e}")
+            print(f"[Auto-thumbnail] ERROR: {type(e).__name__}: {e}")
             return ''
 
     def _generate_screenshot_ffmpeg(self, video_path, timestamp, output_path):
@@ -2148,7 +2198,6 @@ class VideoActionView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class BatchVideoActionView(View):
-    @requires_delete_permission
     def post(self, request):
         try:
             data = json.loads(request.body)
@@ -2217,7 +2266,6 @@ class BatchVideoActionView(View):
             'collectionId': target_collection.id if target_collection else None,
         }, status=200)
     
-    @requires_delete_permission
     def batch_delete_videos(self, request, data):
         """
         批量删除视频

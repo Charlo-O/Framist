@@ -82,7 +82,7 @@ def _ensure_ini():
         }
         cfg['Remote VidGo Service'] = {
             'host': '',
-            'port': '9000',
+            'port': '8000',
             'use_ssl': 'false'
         }
         cfg['TTS settings'] = {
@@ -211,6 +211,18 @@ class ConfigAPIView(View):
             if not settings_dict:
                 return JsonResponse({'error': 'Settings data is required'}, status=400)
             
+            # Clean up API keys and URLs in settings_dict to remove whitespace
+            if 'DEFAULT' in settings_dict:
+                keys_to_strip = [
+                    'deepseek_api_key', 'deepseek_base_url',
+                    'openai_api_key', 'openai_base_url',
+                    'glm_api_key', 'glm_base_url',
+                    'qwen_api_key', 'qwen_base_url'
+                ]
+                for key in keys_to_strip:
+                    if key in settings_dict['DEFAULT'] and isinstance(settings_dict['DEFAULT'][key], str):
+                        settings_dict['DEFAULT'][key] = settings_dict['DEFAULT'][key].strip()
+
             save_all_settings(settings_dict)
             
             # Update OpenAI client if API settings changed
@@ -220,20 +232,20 @@ class ConfigAPIView(View):
                 
                 # Get provider-specific API key and base URL
                 if selected_provider == 'deepseek':
-                    api_key = cfg.get('deepseek_api_key', '')
-                    base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com')
+                    api_key = cfg.get('deepseek_api_key', '').strip()
+                    base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com').strip()
                 elif selected_provider == 'openai':
-                    api_key = cfg.get('openai_api_key', '')
-                    base_url = cfg.get('openai_base_url', 'https://api.openai.com/v1')
+                    api_key = cfg.get('openai_api_key', '').strip()
+                    base_url = cfg.get('openai_base_url', 'https://api.openai.com/v1').strip()
                 elif selected_provider == 'glm':
-                    api_key = cfg.get('glm_api_key', '')
-                    base_url = cfg.get('glm_base_url', 'https://open.bigmodel.cn/api/paas/v4')
+                    api_key = cfg.get('glm_api_key', '').strip()
+                    base_url = cfg.get('glm_base_url', 'https://open.bigmodel.cn/api/paas/v4').strip()
                 elif selected_provider == 'qwen':
-                    api_key = cfg.get('qwen_api_key', '')
-                    base_url = cfg.get('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+                    api_key = cfg.get('qwen_api_key', '').strip()
+                    base_url = cfg.get('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1').strip()
                 else:
-                    api_key = cfg.get('deepseek_api_key', '')
-                    base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com')
+                    api_key = cfg.get('deepseek_api_key', '').strip()
+                    base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com').strip()
                 
                 _init_client(api_key, base_url)
             
@@ -299,36 +311,37 @@ class LLMTestAPIView(View):
             
             # Get provider-specific API key and base URL
             if selected_provider == 'deepseek':
-                api_key = cfg.get('deepseek_api_key', '')
-                base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com')
+                api_key = cfg.get('deepseek_api_key', '').strip()
+                base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com').strip()
                 model = 'deepseek-chat'
             elif selected_provider == 'openai':
-                api_key = cfg.get('openai_api_key', '')
-                base_url = cfg.get('openai_base_url', 'https://api.openai.com/v1')
+                api_key = cfg.get('openai_api_key', '').strip()
+                base_url = cfg.get('openai_base_url', 'https://api.openai.com/v1').strip()
                 model = 'gpt-4o'
             elif selected_provider == 'glm':
-                api_key = cfg.get('glm_api_key', '')
-                base_url = cfg.get('glm_base_url', 'https://open.bigmodel.cn/api/paas/v4')
+                api_key = cfg.get('glm_api_key', '').strip()
+                base_url = cfg.get('glm_base_url', 'https://open.bigmodel.cn/api/paas/v4').strip()
                 model = 'glm-4-plus'
             elif selected_provider == 'qwen':
-                api_key = cfg.get('qwen_api_key', '')
-                base_url = cfg.get('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+                api_key = cfg.get('qwen_api_key', '').strip()
+                base_url = cfg.get('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1').strip()
                 model = 'qwen-plus'
             else:
                 # Default to deepseek
-                api_key = cfg.get('deepseek_api_key', '')
-                base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com')
+                api_key = cfg.get('deepseek_api_key', '').strip()
+                base_url = cfg.get('deepseek_base_url', 'https://api.deepseek.com').strip()
                 model = 'deepseek-chat'
             
             if not api_key or not base_url:
                 return JsonResponse({'success': False, 'error': f'API key or base URL not configured for provider: {selected_provider}'}, status=400)
             
-            _init_client(api_key, base_url)
+            # Create a local client instance for the test
+            test_client = OpenAI(api_key=api_key, base_url=base_url)
             
             # Send test prompt
             prompt = 'Hello, please respond with "Connection successful!"'
             print(f'Sending test prompt to model {model} at {base_url}')
-            response = client.chat.completions.create(
+            response = test_client.chat.completions.create(
                 model=model,
                 messages=[{'role': 'user', 'content': prompt}],
                 timeout=60
@@ -336,6 +349,8 @@ class LLMTestAPIView(View):
             content = response.choices[0].message.content
             return JsonResponse({'success': True, 'response': content})
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'success': False, 'error': str(exc)}, status=500)
 
 

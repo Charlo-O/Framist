@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { defineProps, defineEmits, ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 // i18n functionality
@@ -298,10 +298,9 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="sidebar backdrop-blur-xl border-r flex flex-col h-full transition-all duration-300"
+    class="sidebar sidebar-framist flex flex-col h-full transition-all duration-300"
     :class="[
-      collapsed ? 'sidebar-collapsed' : 'sidebar-expanded',
-      'bg-gradient-to-b from-[#f8f9ff] via-white to-[#f1f5f9] border-slate-200/60'
+      collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'
     ]"
   >
     <!--缩起版 侧边栏-->
@@ -309,7 +308,7 @@ const emit = defineEmits<{
       <el-tooltip :content="t('displaySidebar')" placement="right">
         <button
           @click="toggleCollapse"
-          class="text-slate-500 hover:text-indigo-600 p-2 rounded-xl hover:bg-indigo-50 transition-all duration-200"
+          class="text-mist hover:text-ink p-2 rounded-xl hover:bg-white transition-all duration-200"
         >
           <LibraryBig :size="20" />
         </button>
@@ -317,7 +316,7 @@ const emit = defineEmits<{
       <el-tooltip :content="t('home')" placement="right">
         <button
           @click="emit('updateMenuIndex', 0)"
-          class="text-slate-500 hover:text-indigo-600 p-2 rounded-xl hover:bg-indigo-50 transition-all duration-200"
+          class="text-mist hover:text-ink p-2 rounded-xl hover:bg-white transition-all duration-200"
         >
           <Home :size="20" />
         </button>
@@ -325,7 +324,7 @@ const emit = defineEmits<{
       <el-tooltip content="Search (Ctrl+K)" placement="right">
         <button
           @click="openSearch"
-          class="text-slate-500 hover:text-indigo-600 p-2 rounded-xl hover:bg-indigo-50 transition-all duration-200"
+          class="text-mist hover:text-ink p-2 rounded-xl hover:bg-white transition-all duration-200"
         >
           <LucideSearch :size="20" />
         </button>
@@ -335,85 +334,66 @@ const emit = defineEmits<{
     <!-- 展开版 侧边栏 -->
     <template v-if="!collapsed">
       <!-- 加个空行美化排版 -->
-      <div class="py-3"></div>
-      <nav class="flex-1 overflow-y-auto px-3 scrollbar-premium">
+      <div class="py-6 flex items-center justify-center">
+         <!-- Brand Logo Top -->
+         <div class="flex items-center space-x-3">
+            <div class="relative w-8 h-8 flex items-center justify-center border-2 border-ink rounded-lg">
+               <!-- Viewfinder Gap Top Right -->
+               <div class="absolute -top-1 -right-1 w-2 h-2 bg-paper z-10"></div>
+               <span class="font-display font-bold text-xl text-ink">F</span>
+            </div>
+            <span class="font-display font-bold text-xl tracking-wider text-ink">FRAMIST</span>
+         </div>
+      </div>
+
+      <nav class="flex-1 overflow-y-auto px-4 scrollbar-premium space-y-6">
         <!-- Menu items -->
-        <div class="space-y-1.5 mb-6">
+        <div class="space-y-1">
           <div
             v-for="(item, i) in menuList"
             :key="i"
-            class="flex items-center p-3 rounded-2xl cursor-pointer border transition-all duration-200"
-            :class="
-              props.currentMenuIdx === i
-                ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white border-transparent shadow-lg shadow-indigo-200'
-                : 'hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border-transparent hover:border-indigo-100'
-            "
+            class="nav-item cursor-pointer"
+            :class="props.currentMenuIdx === i ? 'active' : ''"
             @click="item.action()"
           >
-            <template v-if="item.tooltip">
-              <el-tooltip :content="item.tooltip" placement="right">
-                <div class="flex items-center">
-                  <component :is="item.icon" :size="18" />
-                  <span class="ml-3 font-medium">{{ t(item.key) }}</span>
-                </div>
-              </el-tooltip>
-            </template>
-            <template v-else>
-              <div class="flex items-center">
-                <component :is="item.icon" :size="18" />
-                <span class="ml-3 font-medium">{{ t(item.key) }}</span>
-              </div>
-            </template>
+            <!-- Render Icon/Text based on tooltip -->
+            <component :is="item.icon" :size="20" :class="props.currentMenuIdx === i ? 'text-mint' : 'text-ink opacity-70'" />
+            <span class="ml-3 font-medium">{{ t(item.key) }}</span>
           </div>
         </div>
+
+        <div class="border-t border-ink border-opacity-10 my-4"></div>
 
         <!-- 分类 - 只在用户登录时显示 -->
         <template v-if="currentUser">
           <h6
-            class="mb-4 flex items-center justify-between text-xs font-semibold text-slate-400 tracking-wider uppercase"
+            class="mb-3 flex items-center justify-between text-xs font-bold text-mist tracking-widest uppercase pl-2"
           >
-            <div>{{ t('categories') }} ({{ props.categories.length }})</div>
-            <div class="flex items-center space-x-1">
-              <el-tooltip :content="t('refreshVideoData')" placement="top">
-                <button
-                  @click="emit('refresh')"
-                  class="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 transition-all duration-200"
-                >
-                  <RefreshCw :size="14" />
-                </button>
-              </el-tooltip>
-              <el-tooltip :content="t('addCategory')" placement="top">
-                <button
-                  @click="createCategory"
-                  class="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 transition-all duration-200"
-                >
-                  <Plus :size="14" />
-                </button>
-              </el-tooltip>
+            <div>{{ t('categories') }}</div>
+            <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button @click="emit('refresh')" class="hover:text-ink"><RefreshCw :size="12" /></button>
+               <button @click="createCategory" class="hover:text-ink"><Plus :size="12" /></button>
             </div>
           </h6>
-          <div class="flex-1 overflow-y-auto space-y-1">
+          
+          <div class="space-y-1">
             <div
               v-for="category in props.categories"
               :key="category.id"
-              class="group p-3 mb-1 rounded-2xl flex items-center cursor-pointer relative border transition-all duration-200"
+              class="group px-3 py-2 rounded-lg flex items-center cursor-pointer transition-all duration-200"
               :class="
                 category.id === selectedCategoryId
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm'
-                  : 'hover:bg-slate-50 text-slate-600 border-transparent hover:border-slate-200'
+                  ? 'bg-ink text-white shadow-md'
+                  : 'text-ink hover:bg-white hover:pl-4'
               "
               @click="selectCategory(category.id)"
             >
               <div class="w-full flex items-center justify-between">
-                <div class="flex items-center flex-1">
-                  <template v-if="category.id === selectedCategoryId">
-                    <FolderOpen :size="16" class="mr-3" />
-                  </template>
-                  <template v-else>
-                    <div class="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 mr-3"></div>
-                  </template>
+                <div class="flex items-center flex-1 overflow-hidden">
+                  <FolderOpen :size="16" class="mr-3 flex-shrink-0" :class="category.id === selectedCategoryId ? 'text-mint' : 'text-mist'" />
+                  
                   <template v-if="editingCategoryId !== category.id">
-                    <span class="font-medium">{{ category.name }}</span>
+                    <span class="font-medium truncate text-sm">{{ category.name }}</span>
                   </template>
                   <template v-else>
                     <input
@@ -421,33 +401,28 @@ const emit = defineEmits<{
                       @keyup.enter="finishEdit(category)"
                       @blur="editingCategoryId = null"
                       @click.stop
-                      class="ml-2 px-2 py-1 border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-400 bg-white text-slate-700 placeholder-slate-400"
+                      class="ml-1 w-full px-1 py-0 bg-transparent border-b border-white text-white focus:outline-none"
+                      autoFocus
                     />
                   </template>
                 </div>
 
-                <!-- More icon - shows on hover using CSS -->
+                <!-- More icon -->
                 <el-dropdown
                   v-if="editingCategoryId !== category.id"
                   trigger="hover"
                   @command="(cmd: string) => handleCategoryCommand(cmd, category)"
                   @click.stop
-                  class="more-dropdown"
+                  class="more-dropdown opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <button
-                    class="text-slate-400 hover:text-indigo-600 p-1 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg hover:bg-indigo-50"
-                  >
+                  <button class="p-1 hover:text-mint transition-colors">
                     <MoreHorizontal :size="14" />
                   </button>
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item command="rename">{{ t('rename') }}</el-dropdown-item>
-                      <el-dropdown-item command="create-collection">{{
-                        t('addCollection')
-                      }}</el-dropdown-item>
-                      <el-dropdown-item command="delete" divided>{{
-                        t('delete')
-                      }}</el-dropdown-item>
+                      <el-dropdown-item command="create-collection">{{ t('addCollection') }}</el-dropdown-item>
+                      <el-dropdown-item command="delete" divided>{{ t('delete') }}</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -458,97 +433,78 @@ const emit = defineEmits<{
 
         <!-- 未登录状态提示 -->
         <template v-else>
-          <div class="flex-1 flex items-center justify-center">
-            <div class="text-center text-slate-400 p-6">
-              <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
-                <User :size="32" class="text-slate-400" />
-              </div>
-              <p class="text-sm">{{ t('loginToViewCategories') }}</p>
+          <div class="flex-1 flex items-center justify-center py-10">
+            <div class="text-center text-mist">
+              <p class="text-sm font-medium">{{ t('loginToViewCategories') }}</p>
             </div>
           </div>
         </template>
       </nav>
 
       <!-- User Status Area -->
-      <div class="px-3 py-2 border-t border-slate-200/60">
+      <div class="p-4 border-t border-ink border-opacity-5 bg-white bg-opacity-40">
         <div
           @click="handleUserAreaClick"
-          @touchstart="handleUserAreaClick"
-          @touchend.prevent
-          class="flex items-center p-3 rounded-2xl cursor-pointer border border-transparent hover:bg-indigo-50 hover:border-indigo-100 active:bg-indigo-100 transition-all duration-200 relative"
+          class="flex items-center cursor-pointer group"
         >
           <div
-            class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-200"
+            class="w-10 h-10 rounded-full bg-paper border border-ink border-opacity-10 flex items-center justify-center text-ink group-hover:scale-105 transition-transform"
           >
-            <User :size="16" class="text-white" />
+            <User :size="18" />
           </div>
-          <div class="ml-3 flex-1">
-            <div v-if="currentUser" class="text-sm font-semibold text-slate-700">
+          <div class="ml-3 flex-1 overflow-hidden">
+            <div v-if="currentUser" class="text-sm font-bold text-ink truncate">
               {{ currentUser.username }}
             </div>
-            <div v-else class="text-sm font-semibold text-slate-700">{{ t('notLoggedIn') }}</div>
-            <div class="text-xs text-slate-400">
-              {{
-                currentUser
-                  ? currentUser.is_root
-                    ? t('administrator')
-                    : t('user')
-                  : t('clickToLogin')
-              }}
+            <div v-else class="text-sm font-bold text-ink">{{ t('notLoggedIn') }}</div>
+            <div class="text-xs text-mist flex items-center">
+              <div class="w-1.5 h-1.5 rounded-full mr-1.5" :class="currentUser ? 'bg-mint' : 'bg-mist'"></div>
+              {{ currentUser ? 'Online' : 'Guest' }}
             </div>
           </div>
           <ChevronUp
-            v-if="currentUser"
-            :size="16"
-            class="text-slate-400 transition-transform duration-200"
-            :class="{ 'rotate-180': showUserDropdown }"
-          />
+             v-if="currentUser"
+             :size="16"
+             class="text-mist transition-transform duration-200"
+             :class="{ 'rotate-180': showUserDropdown }"
+           />
         </div>
 
         <!-- User Dropdown -->
         <div
           v-if="currentUser && showUserDropdown"
-          class="mt-2 bg-white rounded-2xl border border-slate-200 shadow-glass overflow-hidden"
+          class="mt-3 bg-white rounded-xl border border-ink border-opacity-10 shadow-float overflow-hidden"
         >
           <div
             v-if="currentUser.is_root"
             @click="handleUserManagementClick"
-            class="flex items-center px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors"
+            class="flex items-center px-4 py-3 hover:bg-paper cursor-pointer transition-colors"
           >
-            <UserPlus :size="14" class="text-indigo-500 mr-3" />
-            <span class="text-sm text-slate-700 font-medium">{{ t('userManagement') }}</span>
-          </div>
-          <div v-else-if="currentUser" class="flex items-center px-4 py-3 text-slate-400 text-sm">
-            <span>调试: is_root = {{ currentUser.is_root }}</span>
+            <UserPlus :size="14" class="text-ink mr-3" />
+            <span class="text-sm text-ink font-medium">{{ t('userManagement') }}</span>
           </div>
           <div
             @click="handleLogout"
-            class="flex items-center px-4 py-3 hover:bg-red-50 cursor-pointer transition-colors border-t border-slate-100"
+            class="flex items-center px-4 py-3 hover:bg-coral hover:bg-opacity-10 hover:text-coral cursor-pointer transition-colors border-t border-ink border-opacity-5"
           >
-            <LogOut :size="14" class="text-red-500 mr-3" />
-            <span class="text-sm text-red-600 font-medium">{{ t('logout') }}</span>
+            <LogOut :size="14" class="mr-3" />
+            <span class="text-sm font-medium">{{ t('logout') }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Bottom Logo -->
-      <div class="px-3 py-3 flex items-center border-t border-slate-200/60">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-200">
-          <LibraryBig :size="20" class="text-white" />
-        </div>
-        <div class="ml-2.5 flex flex-col">
-          <span class="text-sm font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">Framist</span>
-          <span class="text-xs text-slate-400">v1.0</span>
-        </div>
-        <el-tooltip :content="t('hideSidebar')" placement="bottom">
+      <!-- Bottom Toggle -->
+      <div class="px-4 py-3 flex justify-center">
+        <el-tooltip :content="t('hideSidebar')" placement="top">
           <button
             @click="toggleCollapse"
-            class="ml-auto text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-indigo-50 transition-all duration-200"
+            class="text-mist hover:text-ink transition-colors"
           >
-            <LibraryBig :size="18" />
+            <div class="w-8 h-1 bg-ink rounded-full opacity-10 hover:opacity-30"></div>
           </button>
         </el-tooltip>
       </div>
+
     </template>
   </div>
 
@@ -563,58 +519,33 @@ const emit = defineEmits<{
 <style lang="postcss" scoped>
 @reference "../../assets/tailwind.css";
 @tailwind utilities;
-.sidebar nav {
-  /* Firefox */
-  scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent; /* gray-200 on thumb, transparent track */
-}
 
-/* WebKit browsers */
+.sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: #E0E0E0 transparent; 
+}
 .sidebar nav::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 .sidebar nav::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb; /* gray-200 */
-  border-radius: 3px;
+  background-color: #E0E0E0; 
+  border-radius: 4px;
 }
 .sidebar nav::-webkit-scrollbar-track {
   background: transparent;
 }
-@layer utilities {
-  .menu-item-active {
-    @apply bg-primary/10 text-primary;
-  }
-}
 
 /* Responsive sidebar width */
 .sidebar-expanded {
-  width: 28%;
+  width: 260px; /* Fixed width for better precision */
 }
-
 .sidebar-collapsed {
-  width: 8%;
+  width: 80px;
 }
 
-/* Large screens and up (1024px+) */
-@media (min-width: 1024px) {
+@media (min-width: 1440px) {
   .sidebar-expanded {
-    width: 14%;
+    width: 280px;
   }
-
-  .sidebar-collapsed {
-    width: 4%;
-  }
-}
-
-/* Glassy folder button effects */
-.group {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.group:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 </style>

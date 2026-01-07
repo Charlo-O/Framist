@@ -115,12 +115,16 @@ export interface ConfigData {
     use_proxy: string
     deepseek_api_key: string
     deepseek_base_url: string
+    deepseek_model_name: string
     glm_api_key: string
     glm_base_url: string
+    glm_model_name: string
     openai_api_key: string
     openai_base_url: string
+    openai_model_name: string
     qwen_api_key: string
     qwen_base_url: string
+    qwen_model_name: string
   }
   'Video watch': {
     raw_language: string
@@ -167,13 +171,25 @@ export interface ConfigData {
     include_punctuation: string
     alibaba_api_key: string
     alibaba_model: string
+    alibaba_custom_model: string
     openai_api_key: string
     openai_base_url: string
+    openai_model: string
   }
   'Remote VidGo Service': {
     host: string
     port: string
     use_ssl: string
+  }
+  'OSS Service': {
+    oss_access_key_id: string
+    oss_access_key_secret: string
+    oss_endpoint: string
+    oss_bucket: string
+    oss_region: string
+  }
+  'TTS settings': {
+    dashscope_api_key: string
   }
 }
 
@@ -185,15 +201,19 @@ export interface FrontendSettings {
   // Provider-specific API keys
   deepseekApiKey: string
   deepseekBaseUrl: string
+  deepseekModelName: string
   openaiApiKey: string
   openaiBaseUrl: string
+  openaiModelName: string
   glmApiKey: string
   glmBaseUrl: string
+  glmModelName: string
   qwenApiKey: string
   qwenBaseUrl: string
+  qwenModelName: string
   // Interface settings
   rawLanguage: string
-  hiddenCategories: number[] // 新增：隐藏的分类ID列表
+  hiddenCategories: number[]
   // Raw Subtitle settings
   fontFamily: string
   previewText: string
@@ -227,14 +247,16 @@ export interface FrontendSettings {
   // Transcription Engine settings
   transcriptionPrimaryEngine: string
   fwsrModel: string
-  useGpu: boolean  // GPU acceleration toggle
+  useGpu: boolean
   transcriptionElevenlabsApiKey: string
   transcriptionElevenlabsModel: string
   transcriptionIncludePunctuation: boolean
   transcriptionAlibabaApiKey: string
   transcriptionAlibabaModel: string
+  transcriptionAlibabaCustomModel: string
   transcriptionOpenaiApiKey: string
   transcriptionOpenaiBaseUrl: string
+  transcriptionOpenaiModel: string
   // Remote VidGo Service settings
   remoteVidGoHost: string
   remoteVidGoPort: string
@@ -279,13 +301,17 @@ export async function loadConfig(): Promise<FrontendSettings> {
       // Provider-specific API keys
       deepseekApiKey: data.DEFAULT?.deepseek_api_key || '',
       deepseekBaseUrl: data.DEFAULT?.deepseek_base_url || 'https://api.deepseek.com',
+      deepseekModelName: data.DEFAULT?.deepseek_model_name || '',
       openaiApiKey: data.DEFAULT?.openai_api_key || '',
       openaiBaseUrl: data.DEFAULT?.openai_base_url || 'https://api.chatanywhere.tech/v1',
+      openaiModelName: data.DEFAULT?.openai_model_name || '',
       glmApiKey: data.DEFAULT?.glm_api_key || '',
       glmBaseUrl: data.DEFAULT?.glm_base_url || 'https://api.deepseek.com',
+      glmModelName: data.DEFAULT?.glm_model_name || '',
       qwenApiKey: data.DEFAULT?.qwen_api_key || '',
       qwenBaseUrl:
         data.DEFAULT?.qwen_base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      qwenModelName: data.DEFAULT?.qwen_model_name || '',
       useProxy: data.DEFAULT?.use_proxy === 'true',
       // Interface settings
       rawLanguage: data['Video watch']?.raw_language || 'zh',
@@ -346,12 +372,14 @@ export async function loadConfig(): Promise<FrontendSettings> {
       transcriptionAlibabaApiKey: data['Transcription Engine']?.alibaba_api_key || '',
       transcriptionAlibabaModel:
         data['Transcription Engine']?.alibaba_model || 'paraformer-realtime-v2',
+      transcriptionAlibabaCustomModel: data['Transcription Engine']?.alibaba_custom_model || '',
       transcriptionOpenaiApiKey: data['Transcription Engine']?.openai_api_key || '',
       transcriptionOpenaiBaseUrl:
         data['Transcription Engine']?.openai_base_url || 'https://api.openai.com/v1',
+      transcriptionOpenaiModel: data['Transcription Engine']?.openai_model || '',
       // Remote VidGo Service settings
       remoteVidGoHost: data['Remote VidGo Service']?.host || '',
-      remoteVidGoPort: data['Remote VidGo Service']?.port || '9000',
+      remoteVidGoPort: data['Remote VidGo Service']?.port || '8000',
       remoteVidGoUseSsl: data['Remote VidGo Service']?.use_ssl === 'true',
       // OSS Service settings
       ossAccessKeyId: data['OSS Service']?.oss_access_key_id || '',
@@ -379,12 +407,16 @@ export async function saveConfig(settings: FrontendSettings): Promise<void> {
         enable_thinking: settings.enableThinking.toString(),
         deepseek_api_key: settings.deepseekApiKey,
         deepseek_base_url: settings.deepseekBaseUrl,
+        deepseek_model_name: settings.deepseekModelName,
         openai_api_key: settings.openaiApiKey,
         openai_base_url: settings.openaiBaseUrl,
+        openai_model_name: settings.openaiModelName,
         glm_api_key: settings.glmApiKey,
         glm_base_url: settings.glmBaseUrl,
+        glm_model_name: settings.glmModelName,
         qwen_api_key: settings.qwenApiKey,
         qwen_base_url: settings.qwenBaseUrl,
+        qwen_model_name: settings.qwenModelName,
         use_proxy: settings.useProxy.toString(),
       },
       'Video watch': {
@@ -432,8 +464,10 @@ export async function saveConfig(settings: FrontendSettings): Promise<void> {
         include_punctuation: settings.transcriptionIncludePunctuation.toString(),
         alibaba_api_key: settings.transcriptionAlibabaApiKey,
         alibaba_model: settings.transcriptionAlibabaModel,
+        alibaba_custom_model: settings.transcriptionAlibabaCustomModel,
         openai_api_key: settings.transcriptionOpenaiApiKey,
         openai_base_url: settings.transcriptionOpenaiBaseUrl,
+        openai_model: settings.transcriptionOpenaiModel,
       },
       'Remote VidGo Service': {
         host: settings.remoteVidGoHost,
