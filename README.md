@@ -50,10 +50,10 @@
 ## 界面预览
 
 <div align="center">
-  <img src="doc/img/screenshot_01.png" width="45%" />
-  <img src="doc/img/screenshot_02.png" width="45%" />
-  <img src="doc/img/screenshot_03.png" width="45%" />
-  <img src="doc/img/screenshot_04.png" width="45%" />
+  <img src="doc/img/screenshot_01.png" width="100%" />
+  <img src="doc/img/screenshot_02.png" width="100%" />
+  <img src="doc/img/screenshot_03.png" width="100%" />
+  <img src="doc/img/screenshot_04.png" width="100%" />
 </div>
 
 ## �📋 目录
